@@ -17,6 +17,12 @@
         "hash": "#/practice"
       },
       {
+        "id": "docs",
+        "path": "/",
+        "title": "文档批改",
+        "hash": "#/docs"
+      },
+      {
         "id": "results",
         "path": "/",
         "title": "练习记录",
@@ -33,26 +39,25 @@
       "appearance",
       "radius",
       "spacing",
-      "typography",
-      "motion"
+      "typography"
     ]
   },
   "publication": {
-    "actionId": "bb39eee8-4c23-471c-abb7-35ebd5d45f99",
+    "actionId": "a3ca72a1-f9a5-4a12-83e1-9eee3ebea1f0",
     "projectId": "01a208cc-7513-7b34-85ed-d8f0da71769b",
     "siteId": "01a208cc-7517-759c-9953-eaa66fbd2d98",
-    "deploymentId": "01a20b7a-4b74-772a-9d9d-9d5432ea8c1f",
-    "artifactSha256": "3cffcafe2a82c19aef2b5a18807d488247f0ce02af61e3c8ec0b5be0eefdec34",
-    "indexSha256": "348dd251f9a25abcda57ddaea98027bd0dafc613ca1084bb02dc03aba7302523",
-    "indexHtml": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9InpoLUNOIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04IiAvPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiIC8+CiAgICA8bWV0YQogICAgICBuYW1lPSJkZXNjcmlwdGlvbiIKICAgICAgY29udGVudD0iVHJhbnNMYWLvvJrpnaLlkJHoi7Hor63nrJTor5Hnu4PkuaDnmoToh6rliqnor4TkvLDlt6XlhbfvvIzpgJDlj6XlrprkvY3or6/or5HjgIHmvI/or5HjgIHnlKjor43jgIHor63ms5XkuI7pgLvovpHpl67popjvvIzlubbnu5nlh7rlj4LogIPor5HmlofkuI7kv67mlLnlu7rorq7jgIIiCiAgICAvPgogICAgPHRpdGxlPlRyYW5zTGFiIMK3IOe/u+ivkeiuree7g+S4juivhOS8sDwvdGl0bGU+CiAgICA8c2NyaXB0IHR5cGU9Im1vZHVsZSIgY3Jvc3NvcmlnaW4gc3JjPSIvYXNzZXRzL2luZGV4LUJTUXA3djdULmpzIj48L3NjcmlwdD4KICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIgY3Jvc3NvcmlnaW4gaHJlZj0iL2Fzc2V0cy9pbmRleC1COHJTNnJpby5jc3MiPgogIDwvaGVhZD4KICA8Ym9keT4KICAgIDxkaXYgaWQ9InJvb3QiPjwvZGl2PgogIDwvYm9keT4KPC9odG1sPgo=",
-    "releaseId": "01a20b7a-6fd0-745b-bc94-6f0e5aeed814"
+    "deploymentId": "01a20d50-9f4e-78ae-94d5-e306bc8f36a2",
+    "artifactSha256": "4bd79b916edf7a88f1d9c615f04b431347a647fe3843f2bdcce6edcb5f047451",
+    "indexSha256": "6561d39e488cc3f2263900589270b63b45b8ff4865ae177c13120078b5a76def",
+    "indexHtml": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9InpoLUNOIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04IiAvPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiIC8+CiAgICA8bWV0YQogICAgICBuYW1lPSJkZXNjcmlwdGlvbiIKICAgICAgY29udGVudD0iVHJhbnNMYWLvvJrkuJPms6ggQ0FUVEkg5LqM57qn56yU6K+R77yI6Iux6K+R5rGJIC8g5rGJ6K+R6Iux77yJ55qE6Ieq5Yqp6K6t57uD5LiO6K+E5YiG56uZ54K544CC5oyJ5Y+l5o+Q5Lqk6K+R5paH77yM6YCQ5Y+l5a6a5L2N6K+v6K+R44CB5ryP6K+R44CB55So6K+N5LiN5b2T44CB6K+t5rOV6Zeu6aKY5LiO6YC76L6R6Zeu6aKY77yM5oyJ54mI5pys5YyW6K+E5YiG6KGo566X5YiG77yM5bm257uZ5Ye65L+u5pS55bu66K6u5LiO5YC85b6X56ev57Sv55qE6Iux5paH6KGo6L6+44CCIgogICAgLz4KICAgIDx0aXRsZT5UcmFuc0xhYiDCtyBDQVRUSSDkuoznuqfnrJTor5Horq3nu4PkuI7or4TliIY8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJtb2R1bGUiIGNyb3Nzb3JpZ2luIHNyYz0iL2Fzc2V0cy9pbmRleC1ES292aklXZy5qcyI+PC9zY3JpcHQ+CiAgICA8bGluayByZWw9InN0eWxlc2hlZXQiIGNyb3Nzb3JpZ2luIGhyZWY9Ii9hc3NldHMvaW5kZXgtQkU2TGhLalUuY3NzIj4KICA8L2hlYWQ+CiAgPGJvZHk+CiAgICA8ZGl2IGlkPSJyb290Ij48L2Rpdj4KICA8L2JvZHk+CjwvaHRtbD4K",
+    "releaseId": "01a20d50-cb79-7236-828f-c75d4f09bc5a"
   },
-  "actionId": "bb39eee8-4c23-471c-abb7-35ebd5d45f99",
+  "actionId": "a3ca72a1-f9a5-4a12-83e1-9eee3ebea1f0",
   "projectId": "01a208cc-7513-7b34-85ed-d8f0da71769b",
   "siteId": "01a208cc-7517-759c-9953-eaa66fbd2d98",
-  "deploymentId": "01a20b7a-4b74-772a-9d9d-9d5432ea8c1f",
-  "artifactSha256": "3cffcafe2a82c19aef2b5a18807d488247f0ce02af61e3c8ec0b5be0eefdec34",
-  "indexSha256": "348dd251f9a25abcda57ddaea98027bd0dafc613ca1084bb02dc03aba7302523",
-  "indexHtml": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9InpoLUNOIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04IiAvPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiIC8+CiAgICA8bWV0YQogICAgICBuYW1lPSJkZXNjcmlwdGlvbiIKICAgICAgY29udGVudD0iVHJhbnNMYWLvvJrpnaLlkJHoi7Hor63nrJTor5Hnu4PkuaDnmoToh6rliqnor4TkvLDlt6XlhbfvvIzpgJDlj6XlrprkvY3or6/or5HjgIHmvI/or5HjgIHnlKjor43jgIHor63ms5XkuI7pgLvovpHpl67popjvvIzlubbnu5nlh7rlj4LogIPor5HmlofkuI7kv67mlLnlu7rorq7jgIIiCiAgICAvPgogICAgPHRpdGxlPlRyYW5zTGFiIMK3IOe/u+ivkeiuree7g+S4juivhOS8sDwvdGl0bGU+CiAgICA8c2NyaXB0IHR5cGU9Im1vZHVsZSIgY3Jvc3NvcmlnaW4gc3JjPSIvYXNzZXRzL2luZGV4LUJTUXA3djdULmpzIj48L3NjcmlwdD4KICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIgY3Jvc3NvcmlnaW4gaHJlZj0iL2Fzc2V0cy9pbmRleC1COHJTNnJpby5jc3MiPgogIDwvaGVhZD4KICA8Ym9keT4KICAgIDxkaXYgaWQ9InJvb3QiPjwvZGl2PgogIDwvYm9keT4KPC9odG1sPgo=",
-  "releaseId": "01a20b7a-6fd0-745b-bc94-6f0e5aeed814"
+  "deploymentId": "01a20d50-9f4e-78ae-94d5-e306bc8f36a2",
+  "artifactSha256": "4bd79b916edf7a88f1d9c615f04b431347a647fe3843f2bdcce6edcb5f047451",
+  "indexSha256": "6561d39e488cc3f2263900589270b63b45b8ff4865ae177c13120078b5a76def",
+  "indexHtml": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9InpoLUNOIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04IiAvPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiIC8+CiAgICA8bWV0YQogICAgICBuYW1lPSJkZXNjcmlwdGlvbiIKICAgICAgY29udGVudD0iVHJhbnNMYWLvvJrkuJPms6ggQ0FUVEkg5LqM57qn56yU6K+R77yI6Iux6K+R5rGJIC8g5rGJ6K+R6Iux77yJ55qE6Ieq5Yqp6K6t57uD5LiO6K+E5YiG56uZ54K544CC5oyJ5Y+l5o+Q5Lqk6K+R5paH77yM6YCQ5Y+l5a6a5L2N6K+v6K+R44CB5ryP6K+R44CB55So6K+N5LiN5b2T44CB6K+t5rOV6Zeu6aKY5LiO6YC76L6R6Zeu6aKY77yM5oyJ54mI5pys5YyW6K+E5YiG6KGo566X5YiG77yM5bm257uZ5Ye65L+u5pS55bu66K6u5LiO5YC85b6X56ev57Sv55qE6Iux5paH6KGo6L6+44CCIgogICAgLz4KICAgIDx0aXRsZT5UcmFuc0xhYiDCtyBDQVRUSSDkuoznuqfnrJTor5Horq3nu4PkuI7or4TliIY8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJtb2R1bGUiIGNyb3Nzb3JpZ2luIHNyYz0iL2Fzc2V0cy9pbmRleC1ES292aklXZy5qcyI+PC9zY3JpcHQ+CiAgICA8bGluayByZWw9InN0eWxlc2hlZXQiIGNyb3Nzb3JpZ2luIGhyZWY9Ii9hc3NldHMvaW5kZXgtQkU2TGhLalUuY3NzIj4KICA8L2hlYWQ+CiAgPGJvZHk+CiAgICA8ZGl2IGlkPSJyb290Ij48L2Rpdj4KICA8L2JvZHk+CjwvaHRtbD4K",
+  "releaseId": "01a20d50-cb79-7236-828f-c75d4f09bc5a"
 }

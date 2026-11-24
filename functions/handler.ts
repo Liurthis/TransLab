@@ -1,6 +1,6 @@
 // functions/handler.ts
 
-import { buildPrompt, type Direction, type ModelResponse } from "./prompt.ts";
+import { buildAlignPrompt, buildPrompt, type Direction, type ModelResponse } from "./prompt.ts";
 import { buildEvaluation, type Issue, type Sentence } from "./scoring.ts";
 import { RUBRIC } from "./rubric.ts";
 
@@ -49,62 +49,30 @@ export async function handler(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "invalid_json" }, { status: 400, headers });
   }
 
+  // 文档导入的「段落配对」是另一个动作：只回配对建议，分数仍只由评分那条路算出来。
+  if (isAlignRequest(raw)) {
+    return await handleAlign(raw, headers);
+  }
+
   const body = parseBody(raw);
   if (!body) {
     return Response.json({ ok: false, error: "invalid_input" }, { status: 400, headers });
   }
 
   const { materialId, direction, sourceSentences, userTranslations, referenceAvailable } = body;
-  const { system, user } = buildPrompt({ direction, sourceSentences, userTranslations });
 
-  const modelResponse = await fetch(`${DASHSCOPE_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${DASHSCOPE_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: DASHSCOPE_MODEL,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.1,
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!modelResponse.ok) {
-    // 只回传状态码与截断后的错误摘要：上游响应体可能包含请求回显内容，
-    // 不能把它原样交给前端渲染。
-    const detail = await modelResponse.text().catch(() => "");
-    return Response.json(
-      {
-        ok: false,
-        error: "model_call_failed",
-        status: modelResponse.status,
-        detail: detail.slice(0, 200),
-      },
-      { status: 502, headers },
-    );
-  }
-
-  const modelData = await modelResponse.json().catch(() => null);
-  const content = modelData?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content) {
-    return Response.json(
-      { ok: false, error: "model_response_invalid" },
-      { status: 502, headers },
-    );
-  }
-
-  const parsed = parseModelJson(content, sourceSentences.length);
-  if (!parsed) {
-    // 解析失败就明确失败：绝不 fallback 造一份分数或清单。
-    return Response.json(
-      { ok: false, error: "model_json_parse_failed" },
-      { status: 502, headers },
-    );
+  let parsed: ModelResponse;
+  try {
+    parsed = await evaluateInBatches(direction, sourceSentences, userTranslations);
+  } catch (error) {
+    // 任何一批失败都整篇失败：缺了几批的错误清单，分数必然虚高，不能凑一份结果回去。
+    if (error instanceof UpstreamError) {
+      return Response.json(
+        { ok: false, error: error.code, ...(error.detail ? { detail: error.detail } : {}) },
+        { status: 502, headers },
+      );
+    }
+    throw error;
   }
 
   const sentences: Sentence[] = sourceSentences.map((source, index) => ({
@@ -136,6 +104,157 @@ export async function handler(request: Request): Promise<Response> {
     },
     { headers },
   );
+}
+
+/**
+ * 一次调用评几句。长材料单次评全篇会同时踩两个坑：网关 60 秒超时，
+ * 以及模型输出 JSON 过长被截断（表现为 model_json_parse_failed）。分批后单次输出短、
+ * 各批并发，总耗时约等于「批数 ÷ 并发数」这一波数乘以最慢一批。
+ * 分数仍由 scoring.ts 在合并后统一计算。
+ */
+const CONCURRENCY = 10;
+
+/**
+ * 句数越多、每批越大：批数才是总耗时的主导项。
+ * 144 句按每批 2 句实测 60.3 秒被网关切断（504），按每批 4 句批数降到 36。
+ */
+function batchSizeFor(segmentCount: number): number {
+  if (segmentCount <= 8) return 2;
+  if (segmentCount <= 32) return 3;
+  return 4;
+}
+
+class UpstreamError extends Error {
+  code: string;
+  detail?: string;
+
+  // 不用 constructor(public code: ...) 参数属性：离线校验靠 Node 的 strip-only 模式跑这份文件。
+  constructor(code: string, detail?: string) {
+    super(code);
+    this.code = code;
+    this.detail = detail;
+  }
+}
+
+async function evaluateInBatches(
+  direction: Direction,
+  sourceSentences: string[],
+  userTranslations: string[],
+): Promise<ModelResponse> {
+  const batchSize = batchSizeFor(sourceSentences.length);
+  const starts: number[] = [];
+  for (let start = 0; start < sourceSentences.length; start += batchSize) starts.push(start);
+
+  const batches = await mapLimit(starts, CONCURRENCY, async (start) => {
+    const size = Math.min(batchSize, sourceSentences.length - start);
+    const { system, user } = buildPrompt({
+      direction,
+      sourceSentences: sourceSentences.slice(start, start + size),
+      userTranslations: userTranslations.slice(start, start + size),
+    });
+    const parsed = await evaluateChunk(system, user, size);
+    // 每批内部用 0 起的局部编号，越界判定也在批内做，合并时再换算回全篇编号。
+    return { start, parsed };
+  });
+
+  return mergeBatches(batches);
+}
+
+/**
+ * 单批评分，解析失败重试一次。
+ * 长材料会产生几十批，任何一批偶发返回残缺 JSON 都不该让整篇练习白做。
+ */
+async function evaluateChunk(system: string, user: string, size: number): Promise<ModelResponse> {
+  let reason = "";
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const diag: { reason?: string } = {};
+    const { content, finishReason } = await callModel(system, user);
+    const parsed = parseModelJson(content, size, diag);
+    if (parsed) return parsed;
+    // 只带可安全回传的诊断量：finish_reason 区分"被 max_tokens 截断"，
+    // diag.reason 指出违反哪一条校验，两者都不含用户译文。
+    reason = `finish=${finishReason || "unknown"} length=${content.length} rule=${
+      diag.reason || "unknown"
+    } attempt=${attempt + 1}`;
+  }
+  throw new UpstreamError("model_json_parse_failed", reason);
+}
+
+export function mergeBatches(
+  batches: { start: number; parsed: ModelResponse }[],
+): ModelResponse {
+  const issues = batches.flatMap(({ start, parsed }) =>
+    parsed.issues.map((issue) => ({ ...issue, sentenceIndex: issue.sentenceIndex + start })),
+  );
+  issues.sort((a, b) => a.sentenceIndex - b.sentenceIndex);
+  return {
+    issues,
+    expressions: batches.flatMap((batch) => batch.parsed.expressions),
+    vocabulary: batches.flatMap((batch) => batch.parsed.vocabulary),
+  };
+}
+
+async function callModel(
+  system: string,
+  user: string,
+): Promise<{ content: string; finishReason: string }> {
+  const modelResponse = await fetch(`${DASHSCOPE_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${DASHSCOPE_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: DASHSCOPE_MODEL,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.1,
+      max_tokens: 4096,
+      // 思考链是单次调用 50 秒以上的主因；关掉后同一段文本的耗时才有希望落在网关 60 秒内。
+      enable_thinking: false,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!modelResponse.ok) {
+    // 只回传状态码与截断后的错误摘要：上游响应体可能包含请求回显内容，
+    // 不能把它原样交给前端渲染。
+    const detail = await modelResponse.text().catch(() => "");
+    throw new UpstreamError(
+      "model_call_failed",
+      `HTTP ${modelResponse.status} ${detail.slice(0, 200)}`.trim(),
+    );
+  }
+
+  const modelData = await modelResponse.json().catch(() => null);
+  const choice = modelData?.choices?.[0];
+  const content = choice?.message?.content;
+  if (typeof content !== "string" || !content) {
+    throw new UpstreamError("model_response_invalid");
+  }
+  return { content, finishReason: String(choice?.finish_reason ?? "") };
+}
+
+/** 并发上限：200 段的文章会产生几十批，不能一次性全打出去。 */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const index = next;
+        next += 1;
+        out[index] = await fn(items[index]);
+      }
+    }),
+  );
+  return out;
 }
 
 /**
@@ -179,21 +298,30 @@ export function parseBody(raw: unknown): RequestBody | null {
  * 因为分数与展示都依赖可定位的句段编号，脏数据会连带算错分数。
  * sentenceIndex 越界的问题无法定位，只能丢弃（见下），其余保留。
  */
-export function parseModelJson(content: string, sentenceCount: number): ModelResponse | null {
+export function parseModelJson(
+  content: string,
+  sentenceCount: number,
+  diag?: { reason?: string },
+): ModelResponse | null {
+  const fail = (reason: string): null => {
+    // 只记录违反了哪一条规则，绝不把模型返回的文本写进诊断：那里面含用户译文。
+    if (diag) diag.reason = reason;
+    return null;
+  };
   let raw: unknown;
   try {
     raw = JSON.parse(stripFence(content));
   } catch {
-    return null;
+    return fail("json_parse");
   }
-  if (typeof raw !== "object" || raw === null) return null;
+  if (typeof raw !== "object" || raw === null) return fail("top_level_not_object");
   const data = raw as Record<string, unknown>;
-  if (!Array.isArray(data.issues)) return null;
+  if (!Array.isArray(data.issues)) return fail("issues_not_array");
 
   const issues: Issue[] = [];
   let dropped = 0;
-  for (const item of data.issues) {
-    const issue = parseIssue(item);
+  for (const [position, item] of data.issues.entries()) {
+    const issue = parseIssue(item, diag, position);
     if (!issue) return null;
     // 越界编号无法定位到句段：显示与计数都会错，丢弃比错位归因诚实。
     if (issue.sentenceIndex >= sentenceCount) {
@@ -206,43 +334,83 @@ export function parseModelJson(content: string, sentenceCount: number): ModelRes
     console.warn(`dropped ${dropped} issue(s) with out-of-range sentenceIndex`);
   }
 
-  const expressions = parseLearningItems(data.expressions);
-  const vocabulary = parseLearningItems(data.vocabulary);
+  const expressions = parseLearningItems(data.expressions, diag, "expressions");
+  const vocabulary = parseLearningItems(data.vocabulary, diag, "vocabulary");
   if (expressions === null || vocabulary === null) return null;
 
   return { issues, expressions, vocabulary };
 }
 
-function parseIssue(item: unknown): Issue | null {
-  if (typeof item !== "object" || item === null) return null;
+function parseIssue(
+  item: unknown,
+  diag?: { reason?: string },
+  position = 0,
+): Issue | null {
+  const fail = (reason: string): null => {
+    if (diag) diag.reason = reason;
+    return null;
+  };
+  if (typeof item !== "object" || item === null) return fail(`issues[${position}]_not_object`);
   const data = item as Record<string, unknown>;
-  if (!Number.isInteger(data.sentenceIndex) || (data.sentenceIndex as number) < 0) return null;
-  if (typeof data.category !== "string" || !CATEGORIES.includes(data.category)) return null;
-  if (typeof data.severity !== "string" || !SEVERITIES.includes(data.severity)) return null;
-  for (const key of ["quote", "problem", "suggestion"]) {
-    if (typeof data[key] !== "string" || !(data[key] as string).trim()) return null;
+  // 只有决定分数的三个字段是硬要求：缺了就只能判失败，绝不猜一个档位来凑分。
+  if (!Number.isInteger(data.sentenceIndex) || (data.sentenceIndex as number) < 0) {
+    return fail(`issues[${position}].sentenceIndex`);
   }
+  if (typeof data.category !== "string" || !CATEGORIES.includes(data.category)) {
+    // 只报长度不报内容：枚举字段被模型写成句子时，诊断本身不该带上译文片段。
+    return fail(`issues[${position}].category.len=${String(data.category).length}`);
+  }
+  if (typeof data.severity !== "string" || !SEVERITIES.includes(data.severity)) {
+    return fail(`issues[${position}].severity.len=${String(data.severity).length}`);
+  }
+  // quote/problem/suggestion 只影响展示，不参与算分。整句未译时学生侧无片段可引，
+  // 为空是合理结果；为此拒收整批会让长材料里几十批被一条空引用全废掉。
+  const text = (key: string): string =>
+    typeof data[key] === "string" ? (data[key] as string).trim() : "";
   return {
     sentenceIndex: data.sentenceIndex as number,
     category: data.category as Issue["category"],
     severity: data.severity as Issue["severity"],
-    quote: data.quote as string,
-    problem: data.problem as string,
-    suggestion: data.suggestion as string,
+    quote: text("quote"),
+    problem: text("problem"),
+    suggestion: text("suggestion"),
   };
 }
 
-/** 学习清单允许为空数组；非空时每条必须有英文 item 和中文 note。 */
-function parseLearningItems(value: unknown): ModelResponse["expressions"] | null {
+/**
+ * 学习清单与分数无关，放宽到"缺 note 也留条目"：
+ * 千词材料有几十批，让一条缺说明的条目废掉整篇评分不值得。
+ */
+function parseLearningItems(
+  value: unknown,
+  diag?: { reason?: string },
+  name = "learning",
+): ModelResponse["expressions"] | null {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) return null;
+  if (!Array.isArray(value)) {
+    if (diag) diag.reason = `${name}_not_array`;
+    return null;
+  }
   const out: ModelResponse["expressions"] = [];
+  let dropped = 0;
   for (const item of value) {
-    if (typeof item !== "object" || item === null) return null;
+    if (typeof item !== "object" || item === null) {
+      dropped += 1;
+      continue;
+    }
     const data = item as Record<string, unknown>;
-    if (typeof data.item !== "string" || !data.item.trim()) return null;
-    if (typeof data.note !== "string" || !data.note.trim()) return null;
-    out.push({ item: data.item, note: data.note });
+    // 没有 item 的条目没有可学内容；note 缺失只影响解释，不影响条目成立。
+    if (typeof data.item !== "string" || !data.item.trim()) {
+      dropped += 1;
+      continue;
+    }
+    out.push({
+      item: data.item.trim(),
+      note: typeof data.note === "string" ? data.note.trim() : "",
+    });
+  }
+  if (dropped > 0) {
+    console.warn(`dropped ${dropped} malformed ${name} item(s)`);
   }
   return out;
 }
@@ -252,4 +420,177 @@ function stripFence(content: string): string {
   const trimmed = content.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
   return fenced ? fenced[1].trim() : trimmed;
+}
+
+/**
+ * 文档导入的段落配对。与评分严格分开：模型只回答「这两段是不是同一段的互译」，
+ * 分数一律由 scoring.ts 按评分表算；而且这里的返回值不会自动生效——
+ * 前端必须把它摊开给用户逐行确认或改完，才拿去评分。错位的配对会把之后每一段都批错，
+ * 分数看着正常，其实全废。
+ */
+interface AlignRequestBody {
+  direction: Direction;
+  sourceParagraphs: string[];
+  targetParagraphs: string[];
+}
+
+export interface AlignPair {
+  sourceIndex: number;
+  targetIndex: number | null;
+}
+
+export interface AlignmentResult {
+  pairs: AlignPair[];
+  notes: string;
+}
+
+function isAlignRequest(raw: unknown): boolean {
+  return (
+    typeof raw === "object" &&
+    raw !== null &&
+    (raw as Record<string, unknown>).action === "align"
+  );
+}
+
+async function handleAlign(
+  raw: unknown,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const input = parseAlignBody(raw);
+  if (!input) {
+    return Response.json({ ok: false, error: "invalid_input" }, { status: 400, headers });
+  }
+  try {
+    const alignment = await alignOnce(input);
+    return Response.json({ ok: true, alignment }, { headers });
+  } catch (error) {
+    if (error instanceof UpstreamError) {
+      return Response.json(
+        { ok: false, error: error.code, ...(error.detail ? { detail: error.detail } : {}) },
+        { status: 502, headers },
+      );
+    }
+    throw error;
+  }
+}
+
+/** 配对是一次调用：输入按段首截断，输出只有编号，不需要分批。失败重试一次。 */
+async function alignOnce(input: AlignRequestBody): Promise<AlignmentResult> {
+  const { system, user } = buildAlignPrompt(input);
+  let reason = "";
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const diag: { reason?: string } = {};
+    const { content, finishReason } = await callModel(system, user);
+    const parsed = parseAlignment(
+      content,
+      input.sourceParagraphs.length,
+      input.targetParagraphs.length,
+      diag,
+    );
+    if (parsed) return parsed;
+    reason = `finish=${finishReason || "unknown"} length=${content.length} rule=${
+      diag.reason || "unknown"
+    } attempt=${attempt + 1}`;
+  }
+  throw new UpstreamError("model_json_parse_failed", reason);
+}
+
+export function parseAlignBody(raw: unknown): AlignRequestBody | null {
+  if (typeof raw === "object" && raw !== null) {
+    const body = raw as Record<string, unknown>;
+    if (!Array.isArray(body.sourceParagraphs) || !Array.isArray(body.targetParagraphs)) {
+      return null;
+    }
+    const sourceParagraphs = body.sourceParagraphs.map((p) => String(p ?? ""));
+    const targetParagraphs = body.targetParagraphs.map((p) => String(p ?? ""));
+    if (!sourceParagraphs.length || !targetParagraphs.length) return null;
+    // 与评分同样的上限：超出就算配上对也批不了。
+    if (sourceParagraphs.length > MAX_SEGMENTS || targetParagraphs.length > MAX_SEGMENTS) {
+      return null;
+    }
+    if (!sourceParagraphs.some((p) => p.trim()) || !targetParagraphs.some((p) => p.trim())) {
+      return null;
+    }
+    const direction = body.direction === undefined ? "en2zh" : body.direction;
+    if (typeof direction !== "string" || !DIRECTIONS.includes(direction as Direction)) {
+      return null;
+    }
+    return { direction: direction as Direction, sourceParagraphs, targetParagraphs };
+  }
+  return null;
+}
+
+/**
+ * 配对建议的校验：坏条目一律降级成「没配上」而不是拒收整份建议。
+ * 原文段落永远成行出现（末尾补齐为 null），这样界面上看得见的段落数和文档段落数一致，
+ * 用户不会以为某一段被系统吃掉了。
+ */
+export function parseAlignment(
+  content: string,
+  sourceCount: number,
+  targetCount: number,
+  diag?: { reason?: string },
+): AlignmentResult | null {
+  const fail = (reason: string): null => {
+    if (diag) diag.reason = reason;
+    return null;
+  };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(stripFence(content));
+  } catch {
+    return fail("json_parse");
+  }
+  if (typeof raw !== "object" || raw === null) return fail("top_level_not_object");
+  const data = raw as Record<string, unknown>;
+  if (!Array.isArray(data.pairs)) return fail("pairs_not_array");
+
+  const chosen = new Map<number, number | null>();
+  const usedTarget = new Set<number>();
+  let dropped = 0;
+  for (const item of data.pairs as unknown[]) {
+    if (!Array.isArray(item) || item.length < 2) {
+      dropped += 1;
+      continue;
+    }
+    const source = item[0];
+    const target = item[1];
+    if (!Number.isInteger(source) || (source as number) < 0 || (source as number) >= sourceCount) {
+      dropped += 1;
+      continue;
+    }
+    const sourceIndex = source as number;
+    if (chosen.has(sourceIndex)) {
+      dropped += 1;
+      continue;
+    }
+    if (target === null || target === undefined) {
+      chosen.set(sourceIndex, null);
+      continue;
+    }
+    // 译文编号不可用或被用过，只降级成「没配上」：原文行还在，用户看得见也能自己选。
+    if (!Number.isInteger(target) || (target as number) < 0 || (target as number) >= targetCount) {
+      chosen.set(sourceIndex, null);
+      continue;
+    }
+    const targetIndex = target as number;
+    if (usedTarget.has(targetIndex)) {
+      chosen.set(sourceIndex, null);
+      continue;
+    }
+    usedTarget.add(targetIndex);
+    chosen.set(sourceIndex, targetIndex);
+  }
+  if (dropped > 0) {
+    console.warn(`alignment dropped ${dropped} malformed pair entry(ies)`);
+  }
+
+  const pairs: AlignPair[] = [];
+  for (let sourceIndex = 0; sourceIndex < sourceCount; sourceIndex += 1) {
+    pairs.push({ sourceIndex, targetIndex: chosen.get(sourceIndex) ?? null });
+  }
+  return {
+    pairs,
+    notes: typeof data.notes === "string" ? data.notes.trim().slice(0, 400) : "",
+  };
 }

@@ -53,7 +53,7 @@ const JSON_SCHEMA = `{
       "sentenceIndex": 0,
       "category": "mistranslation",
       "severity": "moderate",
-      "quote": "学生译文中的具体问题片段",
+      "quote": "问题片段：一般取自学生译文，漏译时取自原文",
       "problem": "用中文说明这里为什么错",
       "suggestion": "给出修改建议"
     }
@@ -97,7 +97,7 @@ ${JSON_SCHEMA}
 
 如果没有问题，issues 为空数组。
 sentenceIndex 从 0 开始，对应输入的句子编号。
-quote 必须是学生${lang.target}中出现的原文片段，不要自己编。
+quote 给出问题片段：默认取自学生${lang.target}；属于漏译时（含整句未译、该句留空）学生${lang.target}里没有可引内容，改为取自${lang.source}中被漏掉的那段，不要自己编，也不要替学生补写译文。
 问题数量按严重程度取舍，不要为凑数罗列风格偏好。`;
 
   const limited = clampSentences(input);
@@ -124,4 +124,68 @@ function clampSentences(input: PromptInput): PromptInput {
     sourceSentences: input.sourceSentences.slice(0, count),
     userTranslations: input.userTranslations.slice(0, count),
   };
+}
+
+export interface AlignInput {
+  direction: Direction;
+  sourceParagraphs: string[];
+  targetParagraphs: string[];
+}
+
+/**
+ * 配对只看每段开头即可判断；两份全文一起塞进一次调用会顶爆上下文，
+ * 也可能把输出撑到被截断——所以给总字数设预算，段数越多每段预览越短。
+ */
+const ALIGN_TOTAL_CHARS = 12000;
+const ALIGN_MIN_PREVIEW = 40;
+
+export function alignPreviewCap(count: number): number {
+  return Math.max(ALIGN_MIN_PREVIEW, Math.floor(ALIGN_TOTAL_CHARS / Math.max(count, 1)));
+}
+
+export function buildAlignPrompt(input: AlignInput): { system: string; user: string } {
+  const lang = languages(input.direction);
+  const cap = alignPreviewCap(
+    Math.max(input.sourceParagraphs.length, input.targetParagraphs.length),
+  );
+  const preview = (text: string): string => {
+    const flat = text.replace(/\s+/g, " ").trim();
+    return flat.length > cap ? `${flat.slice(0, cap)}…` : flat;
+  };
+
+  const system = `你在为笔译批改做「段落配对」：把${lang.source}的段落与对应的${lang.target}段落配起来。
+你只判断两段之间是不是互译关系，不评价译文好坏，不给分数、不给修改建议。
+
+配对规则：
+- 每个原文编号最多出现一次；配不上就写 null，绝不为填满表格而硬配。
+- 一个译文编号最多被用一次。
+- 学生把几段并成一段时，只配给内容最接近的那一段，其余写 null，剩下的由人工确认。
+- 顺序不可靠：译文可能漏译、多译、或小标题与正文错位，必须按内容判断。
+- 上面每段只显示开头 ${cap} 字，据此判断即可；不要因为结尾没看到就判成漏译。
+
+输出格式：严格的 JSON，不要任何额外文字、不要 markdown 代码块。
+{
+  "pairs": [
+    [0, 0],
+    [1, 2],
+    [2, null]
+  ],
+  "notes": "用中文说明哪些段落配不上、大致原因"
+}
+pairs 的每一项是 [原文编号, 译文编号或 null]，必须覆盖全部原文编号 ${input.sourceParagraphs.length} 个（0 起），每个编号恰好出现一次。`;
+
+  const sourceBlock = input.sourceParagraphs.map((text, i) => `[${i}] ${preview(text)}`).join("\n");
+  const targetBlock = input.targetParagraphs.map((text, i) => `[${i}] ${preview(text)}`).join("\n");
+
+  const user = `请按内容把下面两份文档配对。
+
+## ${lang.source}（共 ${input.sourceParagraphs.length} 段）
+${sourceBlock}
+
+## ${lang.target}（共 ${input.targetParagraphs.length} 段）
+${targetBlock}
+
+请输出 JSON。`;
+
+  return { system, user };
 }

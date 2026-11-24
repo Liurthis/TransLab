@@ -31,10 +31,6 @@ export function RubricPage() {
         </p>
       </section>
 
-      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed text-amber-900 dark:text-amber-200">
-        {RUBRIC.disclaimer}
-      </div>
-
       <div className="flex flex-col gap-2">
         <div id="rubric-table" className="rounded-lg border border-border">
           <Table>

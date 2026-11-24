@@ -26,12 +26,12 @@ export function MaterialsPage() {
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <h2 id="site-title" className="text-2xl font-semibold tracking-tight">
-          翻译练习材料
+          CATTI 二级笔译训练材料
         </h2>
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          选择一篇材料，按句写出译文。提交后系统按 CATTI
-          二级笔译的两个方向（英译汉、汉译英）逐句定位五类常见错误，给出修改建议，
-          以及值得积累的英文表达与词汇。
+          TransLab 是一个专注 CATTI
+          二级笔译的训练站点：选一篇材料按句写出译文，提交后按英译汉、汉译英两个方向逐句定位误译、漏译、用词不当、语法问题与逻辑问题，
+          按版本化评分表算分，并给出修改建议与值得积累的英文表达、词汇。
         </p>
         <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
           自建材料与练习结果只保存在这台设备的浏览器里，不上传、不跨设备同步；清除浏览器数据会一并丢失。
@@ -41,7 +41,7 @@ export function MaterialsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Button size="sm" onClick={() => setShowForm((value) => !value)}>
           <Layers />
-          {showForm ? "收起新建材料" : "添加自己的文章"}
+          {showForm ? "收起新建材料" : "添加文章"}
         </Button>
         {storage !== "ok" && (
           <span className="text-xs leading-relaxed text-amber-700 dark:text-amber-400">
@@ -98,7 +98,8 @@ export function MaterialsPage() {
                   </span>
                 </span>
                 <span className="flex items-center gap-1">
-                  {material.origin === "user" ? (
+                  <span className="text-[11px]">开始练习</span>
+                  {material.origin === "user" && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -107,8 +108,6 @@ export function MaterialsPage() {
                     >
                       <Trash2 />
                     </Button>
-                  ) : (
-                    <span className="text-[11px]">内置</span>
                   )}
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
@@ -117,11 +116,6 @@ export function MaterialsPage() {
           );
         })}
       </div>
-
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        内置示例材料说明：
-        {MATERIALS[0]?.sourceNote}
-      </p>
     </div>
   );
 }

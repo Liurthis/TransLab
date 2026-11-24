@@ -8,7 +8,7 @@ const { RUBRIC: fn } = await import("../functions/rubric.ts");
 
 const problems = [];
 
-for (const field of ["version", "title", "totalScore", "sentenceFloor", "disclaimer"]) {
+for (const field of ["version", "title", "totalScore", "sentenceFloor"]) {
   if (web[field] !== fn[field]) {
     problems.push(`${field} 不一致：前端「${web[field]}」/ Function「${fn[field]}」`);
   }
@@ -52,8 +52,8 @@ for (const [label, source] of [
   ["前端", webScoring],
   ["Function", fnScoring],
 ]) {
-  if (!source.includes("summarize(rubric, issues)")) {
-    problems.push(`${label} 的 summarize 调用没有传 rubric，批改点评会算不出扣分`);
+  if (!source.includes("summarize(rubric, issues, sentenceScores)")) {
+    problems.push(`${label} 的 summarize 调用没有传 rubric 与逐句分数，批改点评会算不出扣分`);
   }
 }
 

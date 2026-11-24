@@ -160,6 +160,105 @@ export const MATERIALS: Material[] = [
       },
     ],
   },
+  {
+    id: "poverty-eradication",
+    title: "消除贫困与全球减贫治理",
+    direction: "zh2en",
+    register: "政经文本与官方文献",
+    difficulty: "高级",
+    origin: "builtin",
+    createdAt: "2026-11-24T00:00:00.000Z",
+    sourceNote:
+      "文本与参考译文由用户提供，出处未核实，不标注为 CATTI 真题。参考译文按中文句段对齐：一句中文对应多句英文时已按原顺序合并展示，英文措辞未改动，未经我方逐句审定。",
+    sourceText:
+      "消除贫困，自古以来是人类孜孜以求的理想，也是关乎人类发展的全球性难题。从古希腊哲学家对“理想国”中贫富均衡的构想，到现代国际社会对减贫模式的反复探索，人类始终在与贫困的较量中寻找发展之道，但全球性贫困问题仍未得到根本解决。如何找到符合本国国情的减贫之路，成为许多国家亟待破解的课题。作为世界上最大的发展中国家，中国曾长期饱受贫困问题困扰。为破解这一世界性难题，中国组织实施了人类历史上规模空前、力度最大、惠及人口最多的脱贫攻坚战。2021年，中国向世界庄严宣告，近1亿农村贫困人口全部摆脱绝对贫困，提前10年实现联合国2030年可持续发展议程减贫目标。改革开放40多年来，中国实现8亿多人口脱贫，占同期全球减贫人口70%以上。中国减贫实践的成功，很大程度上是对国际优秀减贫经验做法的兼收并蓄和“国际减贫经验的本土化”，也因此推动了全球减贫事业的进步。中国坚持将自身发展经验转化为可共享的国际公共产品，通过务实合作深化南南合作，持续推动全球贫困治理进程。截至2024年底，中国已向160多个国家提供发展援助，同150多个国家携手共建“一带一路”；全球发展倡议提出以来，已动员近200亿美元发展资金，开展1100多个项目，惠及多国民众。当前，受世界经济增长乏力、地缘冲突频发、发展议题政治化等多重因素叠加影响，全球减贫进程遭遇阻滞，南北发展失衡、发展赤字等深层次矛盾愈发凸显。面对严峻形势，各国唯有同舟共济，互鉴发展经验，深化务实合作，才能推动形成更加包容、更加普惠、更有韧性的全球发展格局。",
+    sentences: [
+      {
+        index: 0,
+        source:
+          "消除贫困，自古以来是人类孜孜以求的理想，也是关乎人类发展的全球性难题。",
+        reference:
+          "Eradicating poverty is a long-cherished aspiration of humanity and a global challenge that bears on human development.",
+      },
+      {
+        index: 1,
+        source:
+          "从古希腊哲学家对“理想国”中贫富均衡的构想，到现代国际社会对减贫模式的反复探索，人类始终在与贫困的较量中寻找发展之道，但全球性贫困问题仍未得到根本解决。",
+        reference:
+          "From ancient Greek philosophers’ vision of a balance between wealth and poverty in the “ideal state” to the modern international community’s repeated exploration of poverty reduction models, humanity has sought to discover the right paths of development while grappling with poverty. However, the global problem of poverty remains fundamentally unresolved.",
+      },
+      {
+        index: 2,
+        source:
+          "如何找到符合本国国情的减贫之路，成为许多国家亟待破解的课题。",
+        reference:
+          "For many countries, to find an approach to poverty reduction that aligns with their national realities remains an urgent task.",
+      },
+      {
+        index: 3,
+        source:
+          "作为世界上最大的发展中国家，中国曾长期饱受贫困问题困扰。",
+        reference:
+          "As the world’s largest developing country, China was plagued by poverty for a long period of time.",
+      },
+      {
+        index: 4,
+        source:
+          "为破解这一世界性难题，中国组织实施了人类历史上规模空前、力度最大、惠及人口最多的脱贫攻坚战。",
+        reference:
+          "To tackle this global challenge, it launched the largest anti-poverty campaign in human history in terms of scale and intensity, benefiting more people than any other such effort.",
+      },
+      {
+        index: 5,
+        source:
+          "2021年，中国向世界庄严宣告，近1亿农村贫困人口全部摆脱绝对贫困，提前10年实现联合国2030年可持续发展议程减贫目标。",
+        reference:
+          "In 2021, China announced that it had lifted 100 million rural residents out of absolute poverty, achieving the poverty reduction target of the UN 2030 Agenda for Sustainable Development ten years ahead of schedule.",
+      },
+      {
+        index: 6,
+        source:
+          "改革开放40多年来，中国实现8亿多人口脱贫，占同期全球减贫人口70%以上。",
+        reference:
+          "Since the introduction of reform and opening-up more than 40 years ago, more than 800 million Chinese people have escaped poverty, accounting for over 70% of the global total over the same period.",
+      },
+      {
+        index: 7,
+        source:
+          "中国减贫实践的成功，很大程度上是对国际优秀减贫经验做法的兼收并蓄和“国际减贫经验的本土化”，也因此推动了全球减贫事业的进步。",
+        reference:
+          "China’s success owes much to its adoption and localization of international experience and practices, and has, in turn, driven the progress of global poverty reduction.",
+      },
+      {
+        index: 8,
+        source:
+          "中国坚持将自身发展经验转化为可共享的国际公共产品，通过务实合作深化南南合作，持续推动全球贫困治理进程。",
+        reference:
+          "China works to translate its development experience into international public goods shared by all and advance results-oriented South-South cooperation, as part of its efforts to facilitate the process of global poverty governance.",
+      },
+      {
+        index: 9,
+        source:
+          "截至2024年底，中国已向160多个国家提供发展援助，同150多个国家携手共建“一带一路”；全球发展倡议提出以来，已动员近200亿美元发展资金，开展1100多个项目，惠及多国民众。",
+        reference:
+          "By the end of 2024, it had provided development assistance for more than 160 countries and cooperated with more than 150 countries on the implementation of the Belt and Road Initiative. Since launching the Global Development Initiative in 2021, it has mobilized nearly 20 billion dollars in development funding and launched more than 1,100 projects, bringing benefits to people in many countries.",
+      },
+      {
+        index: 10,
+        source:
+          "当前，受世界经济增长乏力、地缘冲突频发、发展议题政治化等多重因素叠加影响，全球减贫进程遭遇阻滞，南北发展失衡、发展赤字等深层次矛盾愈发凸显。",
+        reference:
+          "Today, due to a combination of factors, including sluggish global growth, frequent geopolitical conflicts and politicization of the development agenda, global poverty reduction efforts have encountered strong headwinds. At the same time, deep-seated problems, such as development imbalance between the Global South and the Global North and the global development deficit, have grown even more profound.",
+      },
+      {
+        index: 11,
+        source:
+          "面对严峻形势，各国唯有同舟共济，互鉴发展经验，深化务实合作，才能推动形成更加包容、更加普惠、更有韧性的全球发展格局。",
+        reference:
+          "Faced with these dire situations, countries need to pull together, draw on each other’s development experience, and strengthen pragmatic cooperation. This is the only pathway to build a global development landscape that is more inclusive, more universally beneficial and more resilient.",
+      },
+    ],
+  },
 ];
 
 export const DEMO_SUBMISSION: string[] = [

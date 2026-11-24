@@ -3,16 +3,15 @@ import { ArrowLeft, FlaskConical, Loader2, Play, Save, Sparkles } from "lucide-r
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MockBanner } from "../components/MockBanner";
-import { Separator } from "@/components/ui/separator";
 import {
-  DIRECTION_LABELS,
-  ISSUE_LABELS,
-  SEVERITY_LABELS,
-  type Evaluation,
-  type Issue,
-  type LearningItem,
-  type Severity,
-} from "../types";
+  IssueList,
+  SEVERITY_STYLE,
+  ScoreCard,
+  StudyPanel,
+  formatScore,
+  worstSeverity,
+} from "../components/EvaluationPanel";
+import { DIRECTION_LABELS, type Evaluation, type Issue } from "../types";
 import { DEMO_EXPRESSIONS, DEMO_ISSUES, DEMO_MATERIAL_ID, DEMO_VOCABULARY } from "../data/demo-issues";
 import { DEMO_SUBMISSION } from "../data/materials";
 import { RUBRIC } from "../data/rubric";
@@ -20,48 +19,9 @@ import { buildEvaluation } from "../lib/scoring";
 import { findMaterial, loadResults, saveResult, storageState } from "../lib/storage";
 import { navigate } from "../lib/router";
 
-const SEVERITY_STYLE: Record<Severity, { bar: string; badge: string }> = {
-  light: { bar: "bg-sky-500", badge: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
-  moderate: { bar: "bg-amber-500", badge: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-  severe: { bar: "bg-red-500", badge: "bg-red-500/15 text-red-700 dark:text-red-300" },
-};
-
-const SEVERITY_RANK: Record<Severity, number> = { light: 1, moderate: 2, severe: 3 };
-
-function worstSeverity(issues: Issue[]): Severity | null {
-  return issues.reduce<Severity | null>(
-    (worst, issue) =>
-      !worst || SEVERITY_RANK[issue.severity] > SEVERITY_RANK[worst]
-        ? issue.severity
-        : worst,
-    null,
-  );
-}
-
-function formatScore(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
 /** 保存的记录可能来自句数不同的旧版本材料，按当前句数补齐空行，不能让 textarea 拿到 undefined。 */
 function alignDrafts(source: string[], rows: number): string[] {
   return Array.from({ length: rows }, (_, i) => source[i] ?? "");
-}
-
-function StudyColumn({ title, items }: { title: string; items: LearningItem[] }) {
-  if (items.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium">{title}</h3>
-      <ul className="flex flex-col gap-2">
-        {items.map((entry, i) => (
-          <li key={`${title}-${i}`} className="rounded-md border border-border px-3 py-2">
-            <p className="font-serif text-sm leading-relaxed">{entry.item}</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{entry.note}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
 }
 
 export function PracticePage({ materialId, savedAt }: { materialId: string; savedAt?: string }) {
@@ -193,9 +153,6 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
   const referenceAvailable = material.sentences.some((s) => Boolean(s.reference));
   const translationHint =
     material.direction === "zh2en" ? "在此写出这句的英文译文……" : "在此写出这句的中文译文……";
-  const hasStudy =
-    !!evaluation && (evaluation.expressions.length > 0 || evaluation.vocabulary.length > 0);
-
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -252,84 +209,21 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
       )}
 
       {evaluation && (
-        <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-semibold tabular-nums tracking-tight">
-                {formatScore(evaluation.score)}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                / {evaluation.totalScore}
-              </span>
-            </div>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {evaluation.summary}
-            </p>
-          </div>
-
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{
-                width: `${(evaluation.score / evaluation.totalScore) * 100}%`,
-              }}
-            />
-          </div>
-
-          <Separator />
-
-          <dl className="grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <dt>评分表版本</dt>
-              <dd className="font-medium text-foreground tabular-nums">
-                {evaluation.rubricVersion}
-              </dd>
-            </div>
-            <div>
-              <dt>分析来源</dt>
-              <dd className="font-medium text-foreground">{evaluation.model}</dd>
-            </div>
-            <div>
-              <dt>provider</dt>
-              <dd className="font-medium text-foreground">{evaluation.provider}</dd>
-            </div>
-            <div>
-              <dt>是否真实模型</dt>
-              <dd className={evaluation.isMock ? "font-medium text-amber-600" : "font-medium"}>
-                {evaluation.isMock ? "否（演示数据）" : "是"}
-              </dd>
-            </div>
-          </dl>
-
-          {!referenceAvailable && (
-            <p className="rounded-md bg-muted/60 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-              本篇材料没有人工审定的参考译文，因此不提供逐句对照。
-              评分依据是模型定位到的具体错误，不是与某个标准答案比对；
-              系统也不会为了让页面好看而临时生成一份「参考译文」。
-            </p>
-          )}
-        </section>
-      )}
-
-      {evaluation && (
-        <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold tracking-tight">建议学习</h3>
-            <span className="text-xs text-muted-foreground">
-              模型给出、未经人工审定 · 学习条目一律为英文
-            </span>
-          </div>
-          {hasStudy ? (
-            <div className="grid gap-5 md:grid-cols-2">
-              <StudyColumn title="值得学习的表达" items={evaluation.expressions} />
-              <StudyColumn title="值得积累的词汇" items={evaluation.vocabulary} />
-            </div>
-          ) : (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              这次模型没有列出值得学习的表达与词汇。
-            </p>
-          )}
-        </section>
+        <>
+          <ScoreCard
+            evaluation={evaluation}
+            noReference={
+              !referenceAvailable && (
+                <>
+                  本篇材料没有人工审定的参考译文，因此不提供逐句对照。
+                  评分依据是模型定位到的具体错误，不是与某个标准答案比对；
+                  系统也不会为了让页面好看而临时生成一份「参考译文」。
+                </>
+              )
+            }
+          />
+          <StudyPanel evaluation={evaluation} />
+        </>
       )}
 
       <div id="score-panel" className="flex flex-col gap-4">
@@ -376,29 +270,7 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
                     className="w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm leading-relaxed outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                   />
 
-                  {issues.length > 0 && (
-                    <ul className="flex flex-col gap-3">
-                      {issues.map((issue) => (
-                        <li key={`${issue.category}-${issue.severity}-${issue.quote}`} className="flex flex-col gap-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`rounded px-1.5 py-0.5 text-xs font-medium ${SEVERITY_STYLE[issue.severity].badge}`}
-                            >
-                              {ISSUE_LABELS[issue.category]} · {SEVERITY_LABELS[issue.severity]}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              "{issue.quote}"
-                            </span>
-                          </div>
-                          <p className="text-sm leading-relaxed">{issue.problem}</p>
-                          <p className="text-sm leading-relaxed text-muted-foreground">
-                            <span className="font-medium text-foreground">建议：</span>
-                            {issue.suggestion}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <IssueList issues={issues} />
 
                   {evaluation && sentence.reference && (
                     <details className="group text-xs">

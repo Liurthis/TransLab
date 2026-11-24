@@ -87,7 +87,6 @@ export interface Rubric {
   title: string;
   totalScore: number;
   sentenceFloor: number;
-  disclaimer: string;
   deductions: Deduction[];
 }
 

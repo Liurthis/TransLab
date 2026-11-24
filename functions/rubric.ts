@@ -9,10 +9,6 @@ export const RUBRIC: Rubric = {
   title: "CATTI 二级笔译（英译汉 / 汉译英）示例评分表",
   totalScore: 100,
   sentenceFloor: 0,
-  disclaimer:
-    "本表权重为演示配置，未依据 CATTI 官方评分细则校准。官方并未公布逐条扣分值，" +
-    "实际考试采用人工分档阅卷。两个方向共用同一组错误类别与权重。" +
-    "此分数仅用于练习反馈，不代表任何官方评定。",
   deductions: [
     { category: "mistranslation", severity: "light", points: 1 },
     { category: "mistranslation", severity: "moderate", points: 3 },

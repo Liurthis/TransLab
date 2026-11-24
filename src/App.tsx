@@ -1,32 +1,35 @@
-import { BookOpenText, Gauge, History, Layers } from "lucide-react";
+import { BookOpenText, FileUp, Gauge, History, Layers } from "lucide-react";
 import { useHashRoute } from "./lib/router";
-import { RUBRIC } from "./data/rubric";
 import { MaterialsPage } from "./pages/Materials";
+import { DocsPage } from "./pages/Docs";
 import { PracticePage } from "./pages/Practice";
 import { ResultsPage } from "./pages/Results";
 import { RubricPage } from "./pages/Rubric";
 
 const NAV = [
   { path: "/", label: "材料库", icon: Layers },
+  { path: "/docs", label: "文档批改", icon: FileUp },
   { path: "/results", label: "练习记录", icon: History },
   { path: "/rubric", label: "评分规则", icon: Gauge },
 ];
 
 export default function App() {
   const route = useHashRoute();
-  const [section, rawParam] = route.split("/").filter(Boolean);
-  const [materialId, query = ""] = (rawParam ?? "").split("?");
+  // "?query" 可能挂在第一段上（#/docs?saved=…）也可能挂在第二段上（#/practice/<id>?saved=…），
+  // 先剥掉查询串再分路径段，否则 "#/docs?saved=x" 会被整段当成路由名而落回材料库。
+  const [pathPart, query = ""] = route.split("?");
+  const [section, materialId = ""] = pathPart.split("/").filter(Boolean);
+
+  const savedAt = new URLSearchParams(query).get("saved") ?? undefined;
 
   const view =
     section === "practice" ? (
       // key 让切换材料或换一条记录时重新挂载，否则会留着上一篇的译文与评分。
-      <PracticePage
-        key={`${materialId}|${new URLSearchParams(query).get("saved") ?? ""}`}
-        materialId={materialId}
-        savedAt={new URLSearchParams(query).get("saved") ?? undefined}
-      />
+      <PracticePage key={`${materialId}|${savedAt ?? ""}`} materialId={materialId} savedAt={savedAt} />
     ) : section === "results" ? (
       <ResultsPage />
+    ) : section === "docs" ? (
+      <DocsPage key={savedAt ?? ""} savedAt={savedAt} />
     ) : section === "rubric" ? (
       <RubricPage />
     ) : (
@@ -41,7 +44,7 @@ export default function App() {
             <BookOpenText className="size-4 text-primary" />
             <span className="text-sm font-semibold tracking-tight">TransLab</span>
             <span className="hidden text-xs text-muted-foreground sm:inline">
-              翻译训练与评估
+              CATTI 二级笔译训练
             </span>
           </a>
 
@@ -71,8 +74,7 @@ export default function App() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-4 text-xs text-muted-foreground">
-          <span>TransLab · 英语笔译自助训练</span>
-          <span>评分表 {RUBRIC.version} · 未做官方校准</span>
+          <span>TransLab · 专注 CATTI 二级笔译的自助训练与评分</span>
         </div>
       </footer>
     </div>

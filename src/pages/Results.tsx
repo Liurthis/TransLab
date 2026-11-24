@@ -8,7 +8,9 @@ import { navigate } from "../lib/router";
 
 /** 保存记录里可能残留已被删除的材料，列表要能指出这一点而不是显示空白行。 */
 function openTarget(result: SavedResult): string {
-  return `#/practice/${result.material.id}?saved=${encodeURIComponent(result.evaluation.submitted)}`;
+  const saved = encodeURIComponent(result.evaluation.submitted);
+  // 文档批改的记录回文档页看快照：那份材料没进材料库，练习页按 id 找不到它。
+  return result.source === "docs" ? `#/docs?saved=${saved}` : `#/practice/${result.material.id}?saved=${saved}`;
 }
 
 export function ResultsPage() {
@@ -25,7 +27,7 @@ export function ResultsPage() {
       <section className="flex flex-col gap-2">
         <h2 className="text-2xl font-semibold tracking-tight">练习记录</h2>
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          在练习页评分后点「保存结果」，记录就会出现在这里。点开可回看当时的译文、逐句错误与学习清单。
+          在练习页评分后、或文档批改出分后点「保存结果」，记录就会出现在这里。点开可回看当时的译文、逐句（逐段）错误与学习清单；右侧垃圾桶图标删除该条记录。
         </p>
         <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
           记录只存在这台设备的浏览器里，不上传、不跨设备同步；清除浏览器数据会一并丢失。
@@ -53,6 +55,7 @@ export function ResultsPage() {
           {results.map((result) => {
             const { evaluation } = result;
             const filled = result.drafts.filter((text) => text.trim()).length;
+            const isDoc = result.source === "docs";
             return (
               <li
                 key={evaluation.submitted}
@@ -62,13 +65,14 @@ export function ResultsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate text-sm font-medium">{result.material.title}</span>
                     <Badge variant="secondary">{DIRECTION_LABELS[evaluation.direction]}</Badge>
+                    {isDoc && <Badge variant="outline">文档批改</Badge>}
                     {evaluation.isMock && (
                       <Badge variant="outline">演示数据</Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {new Date(evaluation.submitted).toLocaleString("zh-CN")} ·{" "}
-                    填写 {filled} / {result.material.sentences.length} 句 ·{" "}
+                    填写 {filled} / {result.material.sentences.length} {isDoc ? "段" : "句"} ·{" "}
                     {evaluation.isMock ? "内置示例分析" : evaluation.model} · 评分表 {evaluation.rubricVersion}
                   </p>
                 </div>

@@ -30,7 +30,6 @@ export interface Rubric {
   title: string;
   totalScore: number;
   sentenceFloor: number;
-  disclaimer: string;
   deductions: { category: IssueCategory; severity: Severity; points: number }[];
 }
 
@@ -131,11 +130,11 @@ export function buildEvaluation(
     totalScore: rubric.totalScore,
     sentenceScores,
     issues,
-    summary: summarize(rubric, issues),
+    summary: summarize(rubric, issues, sentenceScores),
   };
 }
 
-function summarize(rubric: Rubric, issues: Issue[]): string {
+function summarize(rubric: Rubric, issues: Issue[], sentenceScores: SentenceScore[]): string {
   if (issues.length === 0) return "未发现问题。";
   const counts = new Map<IssueCategory, number>();
   const lostBySentence = new Map<number, number>();
@@ -148,10 +147,18 @@ function summarize(rubric: Rubric, issues: Issue[]): string {
     .map(([category, n]) => `${ISSUE_LABELS[category]}×${n}`)
     .join("、");
   const severe = issues.filter((issue) => issue.severity === "severe").length;
+  const actualLost = new Map(
+    sentenceScores.map((item) => [item.index, round1(item.max - item.score)]),
+  );
   const worst = [...lostBySentence]
     .sort((a, b) => b[1] - a[1] || a[0] - b[0])
     .slice(0, 2)
-    .map(([index, lost]) => `第 ${index + 1} 句（扣 ${round1(lost)} 分）`);
+    // 排名按"本该扣多少"，显示按"实际扣了多少"：单句扣到下限为止，
+    // 长材料一句只值 2 分时写"扣 11 分"会和逐句分数表自相矛盾。
+    .map(([index, gross]) => {
+      const actual = actualLost.get(index) ?? gross;
+      return `第 ${index + 1} 项（扣 ${actual} 分）`;
+    });
   const focus = worst.length > 0 ? `最需要先改${worst.join("、")}。` : "";
   const advice =
     severe > 0

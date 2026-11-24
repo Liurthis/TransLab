@@ -19,6 +19,8 @@ export interface SavedResult {
   /** 保存当时的译文，重开结果页才能重现你写的内容。 */
   drafts: string[];
   evaluation: Evaluation;
+  /** 文档批改页保存的记录：打开时回文档页看快照，不去练习页（原文不在材料库里）。 */
+  source?: "docs";
 }
 
 export type StorageState = "ok" | "disabled" | "unavailable";
