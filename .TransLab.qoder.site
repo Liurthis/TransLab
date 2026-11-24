@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "name": "TransLab",
+  "design": {
+    "version": 1,
+    "pages": [
+      {
+        "id": "materials",
+        "path": "/",
+        "title": "练习材料",
+        "hash": "#/"
+      },
+      {
+        "id": "practice",
+        "path": "/",
+        "title": "翻译练习与评分",
+        "hash": "#/practice"
+      },
+      {
+        "id": "results",
+        "path": "/",
+        "title": "练习记录",
+        "hash": "#/results"
+      },
+      {
+        "id": "rubric",
+        "path": "/",
+        "title": "评分规则说明",
+        "hash": "#/rubric"
+      }
+    ],
+    "capabilities": [
+      "appearance",
+      "radius",
+      "spacing",
+      "typography",
+      "motion"
+    ]
+  },
+  "publication": {
+    "actionId": "bb39eee8-4c23-471c-abb7-35ebd5d45f99",
+    "projectId": "01a208cc-7513-7b34-85ed-d8f0da71769b",
+    "siteId": "01a208cc-7517-759c-9953-eaa66fbd2d98",
+    "deploymentId": "01a20b7a-4b74-772a-9d9d-9d5432ea8c1f",
+    "artifactSha256": "3cffcafe2a82c19aef2b5a18807d488247f0ce02af61e3c8ec0b5be0eefdec34",
+    "indexSha256": "348dd251f9a25abcda57ddaea98027bd0dafc613ca1084bb02dc03aba7302523",
+    "indexHtml": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9InpoLUNOIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04IiAvPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiIC8+CiAgICA8bWV0YQogICAgICBuYW1lPSJkZXNjcmlwdGlvbiIKICAgICAgY29udGVudD0iVHJhbnNMYWLvvJrpnaLlkJHoi7Hor63nrJTor5Hnu4PkuaDnmoToh6rliqnor4TkvLDlt6XlhbfvvIzpgJDlj6XlrprkvY3or6/or5HjgIHmvI/or5HjgIHnlKjor43jgIHor63ms5XkuI7pgLvovpHpl67popjvvIzlubbnu5nlh7rlj4LogIPor5HmlofkuI7kv67mlLnlu7rorq7jgIIiCiAgICAvPgogICAgPHRpdGxlPlRyYW5zTGFiIMK3IOe/u+ivkeiuree7g+S4juivhOS8sDwvdGl0bGU+CiAgICA8c2NyaXB0IHR5cGU9Im1vZHVsZSIgY3Jvc3NvcmlnaW4gc3JjPSIvYXNzZXRzL2luZGV4LUJTUXA3djdULmpzIj48L3NjcmlwdD4KICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIgY3Jvc3NvcmlnaW4gaHJlZj0iL2Fzc2V0cy9pbmRleC1COHJTNnJpby5jc3MiPgogIDwvaGVhZD4KICA8Ym9keT4KICAgIDxkaXYgaWQ9InJvb3QiPjwvZGl2PgogIDwvYm9keT4KPC9odG1sPgo=",
+    "releaseId": "01a20b7a-6fd0-745b-bc94-6f0e5aeed814"
+  },
+  "actionId": "bb39eee8-4c23-471c-abb7-35ebd5d45f99",
+  "projectId": "01a208cc-7513-7b34-85ed-d8f0da71769b",
+  "siteId": "01a208cc-7517-759c-9953-eaa66fbd2d98",
+  "deploymentId": "01a20b7a-4b74-772a-9d9d-9d5432ea8c1f",
+  "artifactSha256": "3cffcafe2a82c19aef2b5a18807d488247f0ce02af61e3c8ec0b5be0eefdec34",
+  "indexSha256": "348dd251f9a25abcda57ddaea98027bd0dafc613ca1084bb02dc03aba7302523",
+  "indexHtml": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9InpoLUNOIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04IiAvPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiIC8+CiAgICA8bWV0YQogICAgICBuYW1lPSJkZXNjcmlwdGlvbiIKICAgICAgY29udGVudD0iVHJhbnNMYWLvvJrpnaLlkJHoi7Hor63nrJTor5Hnu4PkuaDnmoToh6rliqnor4TkvLDlt6XlhbfvvIzpgJDlj6XlrprkvY3or6/or5HjgIHmvI/or5HjgIHnlKjor43jgIHor63ms5XkuI7pgLvovpHpl67popjvvIzlubbnu5nlh7rlj4LogIPor5HmlofkuI7kv67mlLnlu7rorq7jgIIiCiAgICAvPgogICAgPHRpdGxlPlRyYW5zTGFiIMK3IOe/u+ivkeiuree7g+S4juivhOS8sDwvdGl0bGU+CiAgICA8c2NyaXB0IHR5cGU9Im1vZHVsZSIgY3Jvc3NvcmlnaW4gc3JjPSIvYXNzZXRzL2luZGV4LUJTUXA3djdULmpzIj48L3NjcmlwdD4KICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIgY3Jvc3NvcmlnaW4gaHJlZj0iL2Fzc2V0cy9pbmRleC1COHJTNnJpby5jc3MiPgogIDwvaGVhZD4KICA8Ym9keT4KICAgIDxkaXYgaWQ9InJvb3QiPjwvZGl2PgogIDwvYm9keT4KPC9odG1sPgo=",
+  "releaseId": "01a20b7a-6fd0-745b-bc94-6f0e5aeed814"
+}
