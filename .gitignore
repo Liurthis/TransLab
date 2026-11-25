@@ -7,3 +7,6 @@ dist/
 *.tsbuildinfo
 .qoder-sites/
 .qoder-sites.json
+
+# Qoder Sites 部署描述符（自动生成，含个人站点 ID，不随开源仓库分发）
+.TransLab.qoder.site
