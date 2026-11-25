@@ -153,7 +153,7 @@ export async function handler(request: Request): Promise<Response> {
     RUBRIC,
     sentences,
     parsed.issues,
-    provider.fromRequest ? "user" : "dashscope",
+    providerLabel(provider),
     provider.model,
   );
 
@@ -274,6 +274,16 @@ const JSON_MODE_REJECTED = /response_format/i;
  * 只有当服务明确拒绝该字段时才去掉它重试——严格的 OpenAI 兼容服务（如 LM Studio 跑
  * gpt-oss）只接受 json_schema/text，硬带 json_object 会整批批改失败。
  */
+/**
+ * provider 要如实反映请求实际打到哪儿：写死 "dashscope" 会让把 BASE_URL 换成
+ * 本机 LM Studio 的人在界面上看到一个假来源，分不清这次分数是谁算的。
+ */
+export function providerLabel(provider: ProviderConfig): string {
+  if (provider.fromRequest) return "user";
+  if (ALIYUN_ENDPOINT.test(provider.baseUrl)) return "dashscope";
+  return provider.baseUrl.replace(/^https?:\/\//, "").split("/")[0];
+}
+
 async function callModel(
   system: string,
   user: string,

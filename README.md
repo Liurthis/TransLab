@@ -88,6 +88,8 @@ npm run dev            # 终端 2：Vite 起前端，打开 http://127.0.0.1:517
 
 Vite 会把 `/functions/v1/app` 代理到本地 Function（见 `vite.config.ts`），前端代码与线上部署完全一致。
 
+把这三行指向本机的模型服务（LM Studio / Ollama），原文与译文就一步都不出这台电脑：界面本身没有任何外部资源（无 CDN、无字体外链），请求只走 `127.0.0.1`。评分结果里的 `provider` 显示实际主端点（例如 `127.0.0.1:1234`），不会把本地调用写成 `dashscope`。
+
 也可以不碰环境变量：顶栏有「模型接入」页面，在界面里填地址 / 模型名 / API Key，打开开关保存即生效——配置只存在你这台浏览器里。此模式要求 Function 启动时带 `ALLOW_USER_PROVIDER=true`：
 
 ```bash

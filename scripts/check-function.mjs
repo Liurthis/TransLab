@@ -4,8 +4,15 @@
 // handler.ts 在模块顶层读 Deno.env，Node 下需要先塞一个假 Deno 才能 import。
 globalThis.Deno = { env: { get: () => undefined }, serve: () => {} };
 
-const { parseBody, parseModelJson, mergeBatches, parseAlignBody, parseAlignment, parseProviderRequest } =
-  await import("../functions/handler.ts");
+const {
+  parseBody,
+  parseModelJson,
+  mergeBatches,
+  parseAlignBody,
+  parseAlignment,
+  parseProviderRequest,
+  providerLabel,
+} = await import("../functions/handler.ts");
 
 let failures = 0;
 function check(name, actual, expected) {
@@ -64,6 +71,18 @@ check(
   false,
 );
 check("provider 不是对象被拒", parseProviderRequest({ provider: "https://a.example.com" }).valid, false);
+
+// 分数是谁算的必须写在结果里：本地跑的人看到 "dashscope" 会以为自己调了云。
+const label = (baseUrl) => providerLabel({ baseUrl, apiKey: "k", model: "m", fromRequest: false });
+console.log("\n== 评分结果的来源标注 ==");
+check(
+  "界面填的配置标为 user",
+  providerLabel({ baseUrl: "http://127.0.0.1:1234/v1", apiKey: "k", model: "m", fromRequest: true }),
+  "user",
+);
+check("阿里云端点标为 dashscope", label("https://dashscope.aliyuncs.com/compatible-mode/v1"), "dashscope");
+check("本机 LM Studio 标为实际主机端口", label("http://127.0.0.1:1234/v1"), "127.0.0.1:1234");
+check("带路径的自定义域名只取主机名", label("https://api.openai.com/v1"), "api.openai.com");
 
 console.log("== 请求体校验 ==");
 // 旧前端不发 direction：必须按英译汉放行，否则发布顺序一变就全线 invalid_input。
