@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DIRECTION_LABELS, type Material } from "../types";
 import { MATERIALS } from "../data/materials";
-import { loadUserMaterials, deleteUserMaterial, storageState, getAllMaterials } from "../lib/storage";
+import { loadUserMaterials, deleteUserMaterial, deleteDraft, storageState, getAllMaterials } from "../lib/storage";
 import { sourceLength } from "../lib/segment";
 import { navigate } from "../lib/router";
 import { NewMaterialPanel } from "./NewMaterial";
@@ -19,6 +19,7 @@ export function MaterialsPage() {
   const remove = (material: Material) => {
     const result = deleteUserMaterial(material.id);
     if (!result.ok) return;
+    deleteDraft(material.id);
     setUserMaterials(loadUserMaterials());
   };
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, FlaskConical, Loader2, Play, Save, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,25 @@ import { DEMO_EXPRESSIONS, DEMO_ISSUES, DEMO_MATERIAL_ID, DEMO_VOCABULARY } from
 import { DEMO_SUBMISSION } from "../data/materials";
 import { RUBRIC } from "../data/rubric";
 import { buildEvaluation } from "../lib/scoring";
-import { findMaterial, loadResults, saveResult, storageState } from "../lib/storage";
+import {
+  deleteDraft,
+  findMaterial,
+  loadDraft,
+  loadResults,
+  saveDraft,
+  saveResult,
+  storageState,
+} from "../lib/storage";
 import { navigate } from "../lib/router";
 
 /** 保存的记录可能来自句数不同的旧版本材料，按当前句数补齐空行，不能让 textarea 拿到 undefined。 */
 function alignDrafts(source: string[], rows: number): string[] {
   return Array.from({ length: rows }, (_, i) => source[i] ?? "");
 }
+
+type DraftNotice = { kind: "restored" | "saved" | "failed"; at: string };
+
+const DRAFT_SAVE_DELAY_MS = 500;
 
 export function PracticePage({ materialId, savedAt }: { materialId: string; savedAt?: string }) {
   const material = useMemo(() => findMaterial(materialId), [materialId]);
@@ -38,14 +50,69 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
     );
   }, [savedAt, materialId]);
 
+  // 自动草稿只在「正常打开练习」时恢复；带 savedAt 看记录时以记录里的译文为准。
+  const draftEntry = useMemo(
+    () => (savedAt ? null : loadDraft(materialId)),
+    [materialId, savedAt],
+  );
+  const hasDraftContent = draftEntry?.drafts.some((text) => text.trim()) ?? false;
+
   const [drafts, setDrafts] = useState<string[]>(() =>
-    alignDrafts(restored?.drafts ?? [], rows),
+    alignDrafts(restored?.drafts ?? draftEntry?.drafts ?? [], rows),
   );
   const [evaluation, setEvaluation] = useState<Evaluation | null>(restored?.evaluation ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">("idle");
+  const [draftNotice, setDraftNotice] = useState<DraftNotice | null>(() =>
+    hasDraftContent && draftEntry ? { kind: "restored", at: draftEntry.updatedAt } : null,
+  );
   const storage = useMemo(() => storageState(), []);
+
+  // 译文快照 + 待写入定时器：编辑后半秒落盘，页面被关掉/切走时把没来得及写的补上。
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  const saveTimer = useRef<number | null>(null);
+
+  const writeDraftNow = () => {
+    if (saveTimer.current !== null) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    const result = saveDraft(materialId, draftsRef.current);
+    setDraftNotice(result.ok ? { kind: "saved", at: new Date().toISOString() } : { kind: "failed", at: new Date().toISOString() });
+  };
+
+  const scheduleDraftSave = () => {
+    if (storage !== "ok" || !materialId) return;
+    if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      saveTimer.current = null;
+      const result = saveDraft(materialId, draftsRef.current);
+      setDraftNotice(result.ok ? { kind: "saved", at: new Date().toISOString() } : { kind: "failed", at: new Date().toISOString() });
+    }, DRAFT_SAVE_DELAY_MS);
+  };
+
+  // 卸载（切材料/切页面）时仍有待发写入就立刻落盘；关标签页靠 beforeunload 兜底。
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current !== null) {
+        window.clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+        saveDraft(materialId, draftsRef.current);
+      }
+    };
+  }, [materialId]);
+
+  useEffect(() => {
+    const onLeave = () => {
+      if (saveTimer.current !== null) {
+        saveDraft(materialId, draftsRef.current);
+      }
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [materialId]);
 
   const issuesBySentence = useMemo(() => {
     const map = new Map<number, Issue[]>();
@@ -57,8 +124,20 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
 
   const filledCount = drafts.filter((text) => text.trim()).length;
 
-  const setDraft = (index: number, value: string) =>
+  const setDraft = (index: number, value: string) => {
     setDrafts((current) => current.map((item, i) => (i === index ? value : item)));
+    scheduleDraftSave();
+  };
+
+  const clearDraft = () => {
+    if (saveTimer.current !== null) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    deleteDraft(materialId);
+    setDrafts(alignDrafts([], rows));
+    setDraftNotice(null);
+  };
 
   // 示例数据是照内置材料写死的，套在别的材料上就是伪造评估，因此只在该材料上开放。
   const demoAvailable =
@@ -72,6 +151,7 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
     setDrafts(alignDrafts(DEMO_SUBMISSION, material.sentences.length));
     setEvaluation(null);
     setSaveState("idle");
+    scheduleDraftSave();
   };
 
   const runDemoEvaluation = () => {
@@ -196,6 +276,20 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
         </p>
       )}
 
+      {draftNotice?.kind === "restored" && (
+        <p className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+          已恢复 <strong className="font-medium text-foreground">{new Date(draftNotice.at).toLocaleString("zh-CN")}</strong>{" "}
+          自动保存、还没有提交评分的译文，可以接着写。
+          <button
+            type="button"
+            onClick={clearDraft}
+            className="ml-1 underline hover:text-foreground"
+          >
+            清空重来
+          </button>
+        </p>
+      )}
+
       <MockBanner mock={evaluation?.isMock === true} />
 
       {!evaluation && (
@@ -311,6 +405,23 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
         <span>
           已填写 {filledCount} / {material.sentences.length} 句
         </span>
+        {storage === "ok" ? (
+          <span
+            className={
+              draftNotice?.kind === "failed" ? "text-red-600 dark:text-red-400" : undefined
+            }
+          >
+            {draftNotice?.kind === "failed"
+              ? "草稿自动保存失败：本机存储写入被拒绝，译文可能没存住。"
+              : draftNotice?.kind === "saved"
+                ? `草稿已自动保存 ${new Date(draftNotice.at).toLocaleTimeString("zh-CN")}`
+                : "未提交的译文会自动存在这台设备，关掉页面也能接着写"}
+          </span>
+        ) : (
+          <span className="text-amber-700 dark:text-amber-400">
+            本机存储不可用，关闭页面后这些译文会丢失。
+          </span>
+        )}
         {evaluation && storage === "ok" && saveState === "saved" && (
           <span className="text-emerald-600 dark:text-emerald-400">
             已保存到本机浏览器 · <a href="#/results" className="underline">查看练习记录</a>

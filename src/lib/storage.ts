@@ -10,9 +10,13 @@ import { MATERIALS } from "../data/materials";
 
 const MATERIALS_KEY = "translab.v1.materials";
 const RESULTS_KEY = "translab.v1.results";
+const DRAFTS_KEY = "translab.v1.drafts";
 
 /** 保存结果上限：再多本机存储也没意义，且旧结果会长期挤占配额。 */
 export const MAX_SAVED_RESULTS = 100;
+
+/** 一台设备最多留 50 篇的未提交译文：练过的材料早就不止这些了，留着只挤配额。 */
+const MAX_DRAFTS = 50;
 
 export interface SavedResult {
   material: Material;
@@ -143,6 +147,40 @@ export function deleteResult(submitted: string): WriteResult {
   return write(store, RESULTS_KEY, existing.filter((item) => item.evaluation.submitted !== submitted));
 }
 
+/** 一篇材料的未提交译文：练习页边写边自动存，关掉页面下次接着写。 */
+export interface PracticeDraft {
+  materialId: string;
+  drafts: string[];
+  updatedAt: string;
+}
+
+export function loadDraft(materialId: string): PracticeDraft | null {
+  const store = backend();
+  if (!store || !materialId) return null;
+  return readDrafts(store).find((item) => item.materialId === materialId) ?? null;
+}
+
+/** 全是空白就等价于「没写过」：删条目而不是存空壳，别占 50 条上限的名额。 */
+export function saveDraft(materialId: string, drafts: string[]): WriteResult {
+  const store = backend();
+  if (!store) return { ok: false, state: "disabled" };
+  const others = readDrafts(store).filter((item) => item.materialId !== materialId);
+  const next = drafts.some((text) => text.trim())
+    ? [{ materialId, drafts, updatedAt: new Date().toISOString() }, ...others].slice(0, MAX_DRAFTS)
+    : others;
+  return write(store, DRAFTS_KEY, next);
+}
+
+export function deleteDraft(materialId: string): WriteResult {
+  const store = backend();
+  if (!store) return { ok: false, state: "disabled" };
+  return write(store, DRAFTS_KEY, readDrafts(store).filter((item) => item.materialId !== materialId));
+}
+
+function readDrafts(store: Storage): PracticeDraft[] {
+  return readList<PracticeDraft>(store, DRAFTS_KEY).items.filter(isValidDraft);
+}
+
 /** 内置材料不在本机存储里改动：只校验自建材料，结构不合的一律不采信。 */
 function isValidMaterial(value: unknown): value is Material {
   if (typeof value !== "object" || value === null) return false;
@@ -171,6 +209,18 @@ function isValidSavedResult(value: unknown): value is SavedResult {
     typeof evaluation.score === "number" &&
     Array.isArray(evaluation.sentenceScores) &&
     Array.isArray(evaluation.issues)
+  );
+}
+
+function isValidDraft(value: unknown): value is PracticeDraft {
+  if (typeof value !== "object" || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.materialId === "string" &&
+    Boolean(item.materialId) &&
+    Array.isArray(item.drafts) &&
+    item.drafts.every((text) => typeof text === "string") &&
+    typeof item.updatedAt === "string"
   );
 }
 

@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, History, Trash2 } from "lucide-react";
+import { ArrowRight, Download, History, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DIRECTION_LABELS } from "../types";
 import { deleteResult, loadResults, storageState, type SavedResult } from "../lib/storage";
+import { downloadRecord } from "../lib/export";
 import { navigate } from "../lib/router";
 
 /** 保存记录里可能残留已被删除的材料，列表要能指出这一点而不是显示空白行。 */
@@ -27,7 +28,7 @@ export function ResultsPage() {
       <section className="flex flex-col gap-2">
         <h2 className="text-2xl font-semibold tracking-tight">练习记录</h2>
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          在练习页评分后、或文档批改出分后点「保存结果」，记录就会出现在这里。点开可回看当时的译文、逐句（逐段）错误与学习清单；右侧垃圾桶图标删除该条记录。
+          在练习页评分后、或文档批改出分后点「保存结果」，记录就会出现在这里。点开可回看当时的译文、逐句（逐段）错误与学习清单；下载箭头导出一条 Word .docx（原文/我的译文/参考译文（若有）/得分/问题清单/建议表达与词汇）；右侧垃圾桶图标删除该条记录。
         </p>
         <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
           记录只存在这台设备的浏览器里，不上传、不跨设备同步；清除浏览器数据会一并丢失。
@@ -85,6 +86,14 @@ export function ResultsPage() {
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" onClick={() => navigate(openTarget(result).replace(/^#/, ""))}>
                     打开
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`下载 ${result.material.title} 的 .docx`}
+                    onClick={() => downloadRecord(result)}
+                  >
+                    <Download />
                   </Button>
                   <Button
                     size="sm"
