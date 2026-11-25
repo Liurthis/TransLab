@@ -1,6 +1,6 @@
 # TransLab
 
-英语笔译自助训练与评估工具。面向 CATTI 二级笔译的两个方向（英译汉、汉译英），逐句定位误译、漏译、用词不当、语法问题与逻辑问题，给出修改建议、批改总结与值得积累的英文表达和词汇。可粘贴自己的文章自动断句成练习材料；材料与练习结果只保存在本机浏览器。
+英语笔译自助训练与评估工具。面向 CATTI 笔译的两个方向（英译汉、汉译英），逐句定位误译、漏译、用词不当、语法问题与逻辑问题，给出修改建议、批改总结与值得积累的英文表达和词汇。可粘贴自己的文章自动断句成练习材料，也可上传 Word 文档整篇批改；材料与练习结果只保存在本机浏览器。
 
 ## 技术栈
 
@@ -8,7 +8,7 @@
 - 后端：Qoder Sites Edge Function（Deno），同源 `/functions/v1/app`
 - 持久化：浏览器 `localStorage`（无数据库、无登录，见「诚实声明」）
 - 部署：Qoder Sites（静态产物 + Function）
-- 模型：通义千问 DashScope，API Key 通过 Qoder Sites Settings 注入，不进入对话、代码或 `.env`
+- 模型：默认通义千问 DashScope；任何 OpenAI 兼容端点（含 LM Studio / Ollama 本地模型）可凭三个环境变量替换，见「接入你自己的模型」
 
 ## 目录
 
@@ -20,14 +20,20 @@ translab/
 │   ├── prompt.ts      # 按方向构造阅卷 prompt，强制 JSON 输出
 │   ├── scoring.ts     # 评分引擎（与 src/lib/scoring.ts 同一套逻辑）
 │   └── rubric.ts      # Function 侧评分表副本，由 check-rubric 保证与前端一致
+├── dev/
+│   └── function-local.ts  # 本地跑 Function 的 Deno 入口（127.0.0.1:8000）
 ├── scripts/
 │   ├── check-rubric.mjs   # 两份评分表必须逐条相等
 │   ├── check-segment.mjs  # 自动断句不丢字、不重字、可重现
-│   └── check-function.mjs # 请求体与模型输出解析的边界契约
+│   ├── check-function.mjs # 请求体与模型输出解析的边界契约
+│   ├── check-docx.mjs     # 浏览器端 .docx 解析
+│   ├── check-docimport.mjs# 文档导入的判语言/配对规则
+│   ├── check-docx-write.mjs # 练习记录导出 .docx 的生成与回读
+│   └── check-draft.mjs    # 草稿自动存取的边界
 ├── src/
 │   ├── data/          # 材料、评分表、示例分析（纯数据，可替换）
-│   ├── lib/           # 评分引擎、断句、本机存储、路由
-│   ├── pages/         # Materials / NewMaterial / Practice / Results / Rubric
+│   ├── lib/           # 评分引擎、断句、本机存储、路由、docx 读写、导出
+│   ├── pages/         # Materials / NewMaterial / Practice / Docs / Results / Rubric
 │   ├── components/    # 应用组件
 │   ├── types.ts       # 前后端数据契约
 │   └── App.tsx
@@ -41,12 +47,12 @@ translab/
 ```bash
 npm ci
 npm run dev            # Vite 开发服务器，http://127.0.0.1:5173
-npm run build          # 类型检查 + 三项离线契约检查 + 生产构建 → dist/
+npm run build          # 类型检查 + 七项离线契约检查 + 生产构建 → dist/
 npm run check:contract # 只跑检查：断句 / Function 契约 / 评分表一致性
 npm run preview        # 本地预览 dist/（注意：preview 不含 Function，提交评分会报错）
 ```
 
-三项检查都是离线的，不联网、不消耗模型额度，且已挂进 `npm run build`：断句丢字、评分表漂移或 Function 契约破坏都会让构建失败，进不了上传产物。
+这些检查都是离线的，不联网、不消耗模型额度，且已挂进 `npm run build`：断句丢字、评分表漂移或 Function 契约破坏都会让构建失败，进不了上传产物。
 
 Function 已在线上发布并实测调通，本地 Deno 检查不再是阻塞项（当前环境未安装 Deno）。本地若要用代理调试 Function，需另起兼容的 Function 服务：
 
@@ -60,6 +66,29 @@ npm run dev:function
 - 应用 Secret 名称：`DASHSCOPE_API_KEY`
 - 值通过 Qoder Sites Settings 界面填写，**绝不粘贴到对话、代码或 `.env` 中**
 - `.env.example` 只列变量名，不含真实值
+
+## 接入你自己的模型
+
+后端 Function 只依赖 OpenAI 兼容协议（`POST {BASE_URL}/chat/completions`），换服务商或改用本地模型不需要改代码，只需要三个环境变量：
+
+| 变量 | 作用 | 取值 |
+| --- | --- | --- |
+| `DASHSCOPE_BASE_URL` | 模型服务地址 | 默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`；LM Studio 填 `http://localhost:1234/v1`；Ollama 填 `http://localhost:11434/v1` |
+| `DASHSCOPE_MODEL` | 模型名 | 默认 `qwen3.7-flash`；本地服务填你加载的模型名 |
+| `DASHSCOPE_API_KEY` | 密钥 | 云端服务商必填；本地服务（LM Studio / Ollama）填任意非空值即可 |
+
+本地跑一份完整实例（需要较新版本的 [Deno](https://deno.com)，须支持顶层 `Deno.serve` 与 `--env-file`）：
+
+```bash
+npm ci
+cp .env.example .env   # 填入你自己的三行；.env 已在 .gitignore，勿提交
+npm run dev:function   # 终端 1：Deno 起 Function，监听 127.0.0.1:8000
+npm run dev            # 终端 2：Vite 起前端，打开 http://127.0.0.1:5173
+```
+
+Vite 会把 `/functions/v1/app` 代理到本地 Function（见 `vite.config.ts`），前端代码与线上部署完全一致。
+
+注意：`enable_thinking: false`（关闭思考链提速）只在阿里云端点（dashscope / maas 域名）随请求发送，其他服务商收不到这个字段。评分逻辑与模型无关：模型只负责定位错误，分数一律由评分引擎按版本化评分表计算。
 
 ## 开发进度
 
@@ -81,7 +110,7 @@ npm run dev:function
 ## 诚实声明
 
 - 评分表权重（`src/data/rubric.ts`）为演示配置，**未依据 CATTI 官方评分细则校准**。官方并未公布逐条扣分值。
-- 内置 3 篇材料（2 篇英译汉、1 篇汉译英）全部为**原创示例，非 CATTI 真题**。带参考译文的两篇，其译文由 AI 辅助生成、未经专业译审校核；第 3 篇（汉译英）不提供参考译文，用于演示"没有参考译文时界面如何说明"。
+- 内置 4 篇材料（2 篇英译汉、2 篇汉译英）均**非 CATTI 真题**：前 3 篇为原创示例，带参考译文的 2 篇其译文由 AI 辅助生成、未经专业译审校核；`urban-regeneration` 不提供参考译文，用于演示"没有参考译文时界面如何说明"；`poverty-eradication` 由用户本人提供（出处未核实）。
 - **批改总结由规则生成，不是模型评语**：先按错误类别计数，再按评分表算出每句扣分，指出扣分最多的 1–2 句，并按严重程度给一句取径。所有数字都能用评分表复核。
 - `isMock = true` 时页面显示黄色横幅，说明该分数来自内置示例而非模型真实调用；示例入口只在配套材料上出现，避免把不相干的示例分析冒充成对用户文本的评估。
 - 自动断句是确定性正则，不是模型切的：引号内的句号仍会切开（如 `He said: “No. Never.”` 会切成 4 段），练习页提供合并/拆句手工修正，且原始整篇文本始终保留。

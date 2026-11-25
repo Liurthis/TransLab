@@ -9,6 +9,9 @@ const DASHSCOPE_BASE_URL = Deno.env.get("DASHSCOPE_BASE_URL") ??
 const DASHSCOPE_MODEL = Deno.env.get("DASHSCOPE_MODEL") ?? "qwen3.7-flash";
 const DASHSCOPE_API_KEY = Deno.env.get("DASHSCOPE_API_KEY");
 
+/** enable_thinking 是阿里云端点的特有字段；严格的 OpenAI 兼容服务可能拒绝未知字段，非阿里端点不发。 */
+const ALIYUN_ENDPOINT = /dashscope\.aliyuncs\.com|maas\.aliyuncs\.com/.test(DASHSCOPE_BASE_URL);
+
 /** 与前端断句上限、prompt 截断上限保持一致。 */
 const MAX_SEGMENTS = 200;
 
@@ -213,7 +216,7 @@ async function callModel(
       temperature: 0.1,
       max_tokens: 4096,
       // 思考链是单次调用 50 秒以上的主因；关掉后同一段文本的耗时才有希望落在网关 60 秒内。
-      enable_thinking: false,
+      ...(ALIYUN_ENDPOINT ? { enable_thinking: false } : {}),
       response_format: { type: "json_object" },
     }),
   });
