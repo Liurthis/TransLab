@@ -227,3 +227,74 @@ function isValidDraft(value: unknown): value is PracticeDraft {
 export function formatSavedLine(material: Material): string {
   return `${material.title} · ${DIRECTION_LABELS[material.direction]}`;
 }
+
+/** 界面填写的模型接入配置；enabled=false 时请求不带 provider，走部署默认。 */
+export interface ProviderSetting {
+  enabled: boolean;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}
+
+const PROVIDER_KEY = "translab.v1.provider";
+
+export function loadProvider(): ProviderSetting | null {
+  const store = backend();
+  if (!store) return null;
+  let raw: string | null = null;
+  try {
+    raw = store.getItem(PROVIDER_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const p = parsed as Record<string, unknown>;
+    if (
+      typeof p.enabled !== "boolean" ||
+      typeof p.baseUrl !== "string" ||
+      typeof p.model !== "string" ||
+      typeof p.apiKey !== "string"
+    ) {
+      return null;
+    }
+    return { enabled: p.enabled, baseUrl: p.baseUrl, model: p.model, apiKey: p.apiKey };
+  } catch {
+    return null;
+  }
+}
+
+export function saveProviderSetting(setting: ProviderSetting): WriteResult {
+  const store = backend();
+  if (!store) return { ok: false, state: "disabled" };
+  try {
+    store.setItem(PROVIDER_KEY, JSON.stringify(setting));
+    return { ok: true, state: "ok" };
+  } catch {
+    return { ok: false, state: "unavailable" };
+  }
+}
+
+export function clearProviderSetting(): WriteResult {
+  const store = backend();
+  if (!store) return { ok: false, state: "disabled" };
+  try {
+    store.removeItem(PROVIDER_KEY);
+    return { ok: true, state: "ok" };
+  } catch {
+    return { ok: false, state: "unavailable" };
+  }
+}
+
+/** 评分/配对请求的统一出口：未启用或填不全就返回空对象，由部署侧环境变量兜底。 */
+export function providerPayload(): { provider?: { baseUrl: string; apiKey: string; model: string } } {
+  const setting = loadProvider();
+  if (!setting || !setting.enabled) return {};
+  const baseUrl = setting.baseUrl.trim();
+  const model = setting.model.trim();
+  const apiKey = setting.apiKey.trim();
+  if (!baseUrl || !model || !apiKey) return {};
+  return { provider: { baseUrl, apiKey, model } };
+}

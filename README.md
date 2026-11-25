@@ -33,7 +33,7 @@ translab/
 ├── src/
 │   ├── data/          # 材料、评分表、示例分析（纯数据，可替换）
 │   ├── lib/           # 评分引擎、断句、本机存储、路由、docx 读写、导出
-│   ├── pages/         # Materials / NewMaterial / Practice / Docs / Results / Rubric
+│   ├── pages/         # Materials / NewMaterial / Practice / Docs / Results / Rubric / Provider
 │   ├── components/    # 应用组件
 │   ├── types.ts       # 前后端数据契约
 │   └── App.tsx
@@ -87,6 +87,14 @@ npm run dev            # 终端 2：Vite 起前端，打开 http://127.0.0.1:517
 ```
 
 Vite 会把 `/functions/v1/app` 代理到本地 Function（见 `vite.config.ts`），前端代码与线上部署完全一致。
+
+也可以不碰环境变量：顶栏有「模型接入」页面，在界面里填地址 / 模型名 / API Key，打开开关保存即生效——配置只存在你这台浏览器里。此模式要求 Function 启动时带 `ALLOW_USER_PROVIDER=true`：
+
+```bash
+npm run dev:function:byo   # 等价于上一节命令 + ALLOW_USER_PROVIDER=true
+```
+
+向没开启该开关的部署发送自带配置，会得到 `provider_not_enabled` 报错——后端不会静默改用服务端密钥，你花的额度始终是你自己的。
 
 注意：`enable_thinking: false`（关闭思考链提速）只在阿里云端点（dashscope / maas 域名）随请求发送，其他服务商收不到这个字段。评分逻辑与模型无关：模型只负责定位错误，分数一律由评分引擎按版本化评分表计算。
 

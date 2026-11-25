@@ -9,8 +9,58 @@ const DASHSCOPE_BASE_URL = Deno.env.get("DASHSCOPE_BASE_URL") ??
 const DASHSCOPE_MODEL = Deno.env.get("DASHSCOPE_MODEL") ?? "qwen3.7-flash";
 const DASHSCOPE_API_KEY = Deno.env.get("DASHSCOPE_API_KEY");
 
+/**
+ * 用户自带模型配置（BYO）。部署默认不开启：没设 ALLOW_USER_PROVIDER=true 时，
+ * 带 provider 的请求直接报错而不是静默改用服务端配置——静默换后端等于骗用户。
+ */
+const ALLOW_USER_PROVIDER = Deno.env.get("ALLOW_USER_PROVIDER") === "true";
+
 /** enable_thinking 是阿里云端点的特有字段；严格的 OpenAI 兼容服务可能拒绝未知字段，非阿里端点不发。 */
-const ALIYUN_ENDPOINT = /dashscope\.aliyuncs\.com|maas\.aliyuncs\.com/.test(DASHSCOPE_BASE_URL);
+const ALIYUN_ENDPOINT = /dashscope\.aliyuncs\.com|maas\.aliyuncs\.com/;
+
+interface ProviderConfig {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  /** true = 来自请求（用户在界面里填的），影响返回结果的 provider 标注。 */
+  fromRequest: boolean;
+}
+
+interface ProviderParse {
+  provided: boolean;
+  valid: boolean;
+  config?: ProviderConfig;
+}
+
+/** 只回字段名与校验结论，绝不把 apiKey 内容带进任何返回值或日志。 */
+export function parseProviderRequest(raw: unknown): ProviderParse {
+  if (typeof raw !== "object" || raw === null) return { provided: false, valid: true };
+  const field = (raw as Record<string, unknown>).provider;
+  if (field === undefined || field === null) return { provided: false, valid: true };
+  if (typeof field !== "object") return { provided: true, valid: false };
+  const p = field as Record<string, unknown>;
+  if (typeof p.baseUrl !== "string" || typeof p.apiKey !== "string" || typeof p.model !== "string") {
+    return { provided: true, valid: false };
+  }
+  const baseUrl = p.baseUrl.trim();
+  const apiKey = p.apiKey.trim();
+  const model = p.model.trim();
+  if (!baseUrl || !apiKey || !model) return { provided: true, valid: false };
+  if (baseUrl.length > 300 || apiKey.length > 300 || model.length > 150) {
+    return { provided: true, valid: false };
+  }
+  let url: URL;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    return { provided: true, valid: false };
+  }
+  // 内嵌凭据的 URL 会把密钥写进每一次请求行；非 http(s) 协议一律拒绝。
+  if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) {
+    return { provided: true, valid: false };
+  }
+  return { provided: true, valid: true, config: { baseUrl, apiKey, model, fromRequest: true } };
+}
 
 /** 与前端断句上限、prompt 截断上限保持一致。 */
 const MAX_SEGMENTS = 200;
@@ -38,13 +88,6 @@ export async function handler(request: Request): Promise<Response> {
     );
   }
 
-  if (!DASHSCOPE_API_KEY) {
-    return Response.json(
-      { ok: false, error: "service_not_configured" },
-      { status: 500, headers },
-    );
-  }
-
   let raw: unknown;
   try {
     raw = await request.json();
@@ -52,9 +95,29 @@ export async function handler(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "invalid_json" }, { status: 400, headers });
   }
 
+  const providerParse = parseProviderRequest(raw);
+  if (providerParse.provided && !ALLOW_USER_PROVIDER) {
+    return Response.json({ ok: false, error: "provider_not_enabled" }, { status: 400, headers });
+  }
+  if (providerParse.provided && !providerParse.valid) {
+    return Response.json({ ok: false, error: "invalid_provider" }, { status: 400, headers });
+  }
+  const provider: ProviderConfig = providerParse.config ?? {
+    baseUrl: DASHSCOPE_BASE_URL,
+    apiKey: DASHSCOPE_API_KEY ?? "",
+    model: DASHSCOPE_MODEL,
+    fromRequest: false,
+  };
+  if (!provider.apiKey) {
+    return Response.json(
+      { ok: false, error: "service_not_configured" },
+      { status: 500, headers },
+    );
+  }
+
   // 文档导入的「段落配对」是另一个动作：只回配对建议，分数仍只由评分那条路算出来。
   if (isAlignRequest(raw)) {
-    return await handleAlign(raw, headers);
+    return await handleAlign(raw, headers, provider);
   }
 
   const body = parseBody(raw);
@@ -66,7 +129,7 @@ export async function handler(request: Request): Promise<Response> {
 
   let parsed: ModelResponse;
   try {
-    parsed = await evaluateInBatches(direction, sourceSentences, userTranslations);
+    parsed = await evaluateInBatches(direction, sourceSentences, userTranslations, provider);
   } catch (error) {
     // 任何一批失败都整篇失败：缺了几批的错误清单，分数必然虚高，不能凑一份结果回去。
     if (error instanceof UpstreamError) {
@@ -90,8 +153,8 @@ export async function handler(request: Request): Promise<Response> {
     RUBRIC,
     sentences,
     parsed.issues,
-    "dashscope",
-    DASHSCOPE_MODEL,
+    provider.fromRequest ? "user" : "dashscope",
+    provider.model,
   );
 
   return Response.json(
@@ -143,6 +206,7 @@ async function evaluateInBatches(
   direction: Direction,
   sourceSentences: string[],
   userTranslations: string[],
+  provider: ProviderConfig,
 ): Promise<ModelResponse> {
   const batchSize = batchSizeFor(sourceSentences.length);
   const starts: number[] = [];
@@ -155,7 +219,7 @@ async function evaluateInBatches(
       sourceSentences: sourceSentences.slice(start, start + size),
       userTranslations: userTranslations.slice(start, start + size),
     });
-    const parsed = await evaluateChunk(system, user, size);
+    const parsed = await evaluateChunk(system, user, size, provider);
     // 每批内部用 0 起的局部编号，越界判定也在批内做，合并时再换算回全篇编号。
     return { start, parsed };
   });
@@ -167,11 +231,16 @@ async function evaluateInBatches(
  * 单批评分，解析失败重试一次。
  * 长材料会产生几十批，任何一批偶发返回残缺 JSON 都不该让整篇练习白做。
  */
-async function evaluateChunk(system: string, user: string, size: number): Promise<ModelResponse> {
+async function evaluateChunk(
+  system: string,
+  user: string,
+  size: number,
+  provider: ProviderConfig,
+): Promise<ModelResponse> {
   let reason = "";
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const diag: { reason?: string } = {};
-    const { content, finishReason } = await callModel(system, user);
+    const { content, finishReason } = await callModel(system, user, provider);
     const parsed = parseModelJson(content, size, diag);
     if (parsed) return parsed;
     // 只带可安全回传的诊断量：finish_reason 区分"被 max_tokens 截断"，
@@ -200,15 +269,16 @@ export function mergeBatches(
 async function callModel(
   system: string,
   user: string,
+  provider: ProviderConfig,
 ): Promise<{ content: string; finishReason: string }> {
-  const modelResponse = await fetch(`${DASHSCOPE_BASE_URL}/chat/completions`, {
+  const modelResponse = await fetch(`${provider.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${DASHSCOPE_API_KEY}`,
+      "Authorization": `Bearer ${provider.apiKey}`,
     },
     body: JSON.stringify({
-      model: DASHSCOPE_MODEL,
+      model: provider.model,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -216,7 +286,7 @@ async function callModel(
       temperature: 0.1,
       max_tokens: 4096,
       // 思考链是单次调用 50 秒以上的主因；关掉后同一段文本的耗时才有希望落在网关 60 秒内。
-      ...(ALIYUN_ENDPOINT ? { enable_thinking: false } : {}),
+      ...(ALIYUN_ENDPOINT.test(provider.baseUrl) ? { enable_thinking: false } : {}),
       response_format: { type: "json_object" },
     }),
   });
@@ -458,13 +528,14 @@ function isAlignRequest(raw: unknown): boolean {
 async function handleAlign(
   raw: unknown,
   headers: Record<string, string>,
+  provider: ProviderConfig,
 ): Promise<Response> {
   const input = parseAlignBody(raw);
   if (!input) {
     return Response.json({ ok: false, error: "invalid_input" }, { status: 400, headers });
   }
   try {
-    const alignment = await alignOnce(input);
+    const alignment = await alignOnce(input, provider);
     return Response.json({ ok: true, alignment }, { headers });
   } catch (error) {
     if (error instanceof UpstreamError) {
@@ -478,12 +549,12 @@ async function handleAlign(
 }
 
 /** 配对是一次调用：输入按段首截断，输出只有编号，不需要分批。失败重试一次。 */
-async function alignOnce(input: AlignRequestBody): Promise<AlignmentResult> {
+async function alignOnce(input: AlignRequestBody, provider: ProviderConfig): Promise<AlignmentResult> {
   const { system, user } = buildAlignPrompt(input);
   let reason = "";
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const diag: { reason?: string } = {};
-    const { content, finishReason } = await callModel(system, user);
+    const { content, finishReason } = await callModel(system, user, provider);
     const parsed = parseAlignment(
       content,
       input.sourceParagraphs.length,

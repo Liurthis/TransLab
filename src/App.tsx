@@ -1,8 +1,9 @@
-import { BookOpenText, FileUp, Gauge, History, Layers } from "lucide-react";
+import { BookOpenText, FileUp, Gauge, History, Layers, Plug } from "lucide-react";
 import { useHashRoute } from "./lib/router";
 import { MaterialsPage } from "./pages/Materials";
 import { DocsPage } from "./pages/Docs";
 import { PracticePage } from "./pages/Practice";
+import { ProviderPage } from "./pages/Provider";
 import { ResultsPage } from "./pages/Results";
 import { RubricPage } from "./pages/Rubric";
 
@@ -11,6 +12,7 @@ const NAV = [
   { path: "/docs", label: "文档批改", icon: FileUp },
   { path: "/results", label: "练习记录", icon: History },
   { path: "/rubric", label: "评分规则", icon: Gauge },
+  { path: "/provider", label: "模型接入", icon: Plug },
 ];
 
 export default function App() {
@@ -32,6 +34,8 @@ export default function App() {
       <DocsPage key={savedAt ?? ""} savedAt={savedAt} />
     ) : section === "rubric" ? (
       <RubricPage />
+    ) : section === "provider" ? (
+      <ProviderPage />
     ) : (
       <MaterialsPage />
     );

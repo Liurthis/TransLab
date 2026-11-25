@@ -14,6 +14,7 @@
     "check:contract": "node scripts/check-rubric.mjs && node scripts/check-segment.mjs && node scripts/check-function.mjs && node scripts/check-docx.mjs && node scripts/check-docimport.mjs && node scripts/check-docx-write.mjs && node scripts/check-draft.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "dev:function": "deno run --allow-net=127.0.0.1:8000 dev/function-local.ts",
+    "dev:function:byo": "ALLOW_USER_PROVIDER=true deno run --allow-net=127.0.0.1:8000 dev/function-local.ts",
     "check:function": "deno check functions/index.ts"
   },
   "dependencies": {

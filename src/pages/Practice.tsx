@@ -21,6 +21,7 @@ import {
   findMaterial,
   loadDraft,
   loadResults,
+  providerPayload,
   saveDraft,
   saveResult,
   storageState,
@@ -186,6 +187,7 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
           direction: material.direction,
           sourceSentences: material.sentences.map((s) => s.source),
           userTranslations: drafts,
+          ...providerPayload(),
         }),
       });
       // 网关出错时返回的不是 JSON，直接 response.json() 会抛出没人看得懂的原生报错。

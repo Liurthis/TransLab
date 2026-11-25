@@ -27,7 +27,7 @@ import {
   type ImportedDocument,
   type PairSuggestion,
 } from "../lib/docimport";
-import { loadResults, saveResult, storageState } from "../lib/storage";
+import { loadResults, providerPayload, saveResult, storageState } from "../lib/storage";
 
 /** .doc/.pdf 也放进选择框：界面里能选中才能给出「另存为 .docx」这种具体下一步，
  *  而不是让用户在文件对话框里找不到自己的文件。 */
@@ -43,7 +43,7 @@ async function postJson(body: Record<string, unknown>): Promise<Record<string, u
   const response = await fetch("/functions/v1/app", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...providerPayload() }),
   });
   const text = await response.text();
   let data: Record<string, unknown>;

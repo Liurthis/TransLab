@@ -4,9 +4,8 @@
 // handler.ts 在模块顶层读 Deno.env，Node 下需要先塞一个假 Deno 才能 import。
 globalThis.Deno = { env: { get: () => undefined }, serve: () => {} };
 
-const { parseBody, parseModelJson, mergeBatches, parseAlignBody, parseAlignment } = await import(
-  "../functions/handler.ts"
-);
+const { parseBody, parseModelJson, mergeBatches, parseAlignBody, parseAlignment, parseProviderRequest } =
+  await import("../functions/handler.ts");
 
 let failures = 0;
 function check(name, actual, expected) {
@@ -25,6 +24,46 @@ const base = {
   sourceSentences: ["Cities plant more trees.", "Mr. Liu disagrees."],
   userTranslations: ["城市多种树。", "刘先生不同意。"],
 };
+
+console.log("== 用户自带模型配置（provider）==");
+check("不带 provider 视为未提供", parseProviderRequest(base).provided, false);
+check("provider 为 null 视为未提供", parseProviderRequest({ ...base, provider: null }), {
+  provided: false,
+  valid: true,
+});
+const goodProvider = parseProviderRequest({
+  ...base,
+  provider: { baseUrl: " http://localhost:1234/v1 ", apiKey: " key ", model: " lm " },
+});
+check(
+  "合法配置被采信且首尾空白裁掉",
+  [goodProvider.provided, goodProvider.valid, goodProvider.config?.baseUrl, goodProvider.config?.model],
+  [true, true, "http://localhost:1234/v1", "lm"],
+);
+check(
+  "非 http(s) 协议被拒",
+  parseProviderRequest({ provider: { baseUrl: "javascript:alert(1)", apiKey: "k", model: "m" } }).valid,
+  false,
+);
+check(
+  "URL 内嵌凭据被拒",
+  parseProviderRequest({ provider: { baseUrl: "https://u:p@api.example.com/v1", apiKey: "k", model: "m" } }).valid,
+  false,
+);
+check("缺字段的 provider 被拒", parseProviderRequest({ provider: { baseUrl: "https://a.example.com/v1" } }).valid, false);
+check(
+  "空密钥被拒",
+  parseProviderRequest({ provider: { baseUrl: "https://a.example.com/v1", apiKey: "   ", model: "m" } }).valid,
+  false,
+);
+check(
+  "超长地址被拒",
+  parseProviderRequest({
+    provider: { baseUrl: "https://a.example.com/" + "x".repeat(300), apiKey: "k", model: "m" },
+  }).valid,
+  false,
+);
+check("provider 不是对象被拒", parseProviderRequest({ provider: "https://a.example.com" }).valid, false);
 
 console.log("== 请求体校验 ==");
 // 旧前端不发 direction：必须按英译汉放行，否则发布顺序一变就全线 invalid_input。
