@@ -266,30 +266,62 @@ export function mergeBatches(
   };
 }
 
+/** 上游明确抱怨 response_format 时才值得退回不带它重发；其它 4xx 退让只会掩盖真因。 */
+const JSON_MODE_REJECTED = /response_format/i;
+
+/**
+ * 一次模型调用。先按 JSON 模式请求（阿里云等服务商靠它显著降低格式错误），
+ * 只有当服务明确拒绝该字段时才去掉它重试——严格的 OpenAI 兼容服务（如 LM Studio 跑
+ * gpt-oss）只接受 json_schema/text，硬带 json_object 会整批批改失败。
+ */
 async function callModel(
   system: string,
   user: string,
   provider: ProviderConfig,
 ): Promise<{ content: string; finishReason: string }> {
-  const modelResponse = await fetch(`${provider.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${provider.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: provider.model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.1,
-      max_tokens: 4096,
-      // 思考链是单次调用 50 秒以上的主因；关掉后同一段文本的耗时才有希望落在网关 60 秒内。
-      ...(ALIYUN_ENDPOINT.test(provider.baseUrl) ? { enable_thinking: false } : {}),
-      response_format: { type: "json_object" },
-    }),
-  });
+  try {
+    return await requestCompletion(system, user, provider, true);
+  } catch (error) {
+    if (error instanceof UpstreamError && error.code === "model_call_failed" && JSON_MODE_REJECTED.test(error.detail ?? "")) {
+      return await requestCompletion(system, user, provider, false);
+    }
+    throw error;
+  }
+}
+
+async function requestCompletion(
+  system: string,
+  user: string,
+  provider: ProviderConfig,
+  jsonMode: boolean,
+): Promise<{ content: string; finishReason: string }> {
+  let modelResponse: Response;
+  try {
+    modelResponse = await fetch(`${provider.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${provider.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: provider.model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        temperature: 0.1,
+        max_tokens: 4096,
+        // 思考链是单次调用 50 秒以上的主因；关掉后同一段文本的耗时才有希望落在网关 60 秒内。
+        ...(ALIYUN_ENDPOINT.test(provider.baseUrl) ? { enable_thinking: false } : {}),
+        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+      }),
+    });
+  } catch (error) {
+    // 自建模型最典型的失败是连接被拒（本地服务没开、地址端口填错）。原始异常往上冒只会
+    // 变成一句没有内容的 500，用户看不出该改哪里；错误文本只有主机端口，不含密钥与译文。
+    const message = error instanceof Error ? error.message : String(error);
+    throw new UpstreamError("model_call_failed", `connect: ${message.slice(0, 160)}`);
+  }
 
   if (!modelResponse.ok) {
     // 只回传状态码与截断后的错误摘要：上游响应体可能包含请求回显内容，

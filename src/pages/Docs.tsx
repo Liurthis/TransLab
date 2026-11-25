@@ -56,6 +56,13 @@ async function postJson(body: Record<string, unknown>): Promise<Record<string, u
   return data;
 }
 
+/** 自己接模型时最需要知道的是"哪一步没通"：错误码配上服务端回传的简短诊断才改得动。 */
+function errorMessage(data: Record<string, unknown>, fallback: string): string {
+  const code = typeof data.error === "string" ? data.error : fallback;
+  const detail = typeof data.detail === "string" && data.detail ? ` · ${data.detail}` : "";
+  return `${code}${detail}`;
+}
+
 function FileField({
   label,
   hint,
@@ -270,7 +277,7 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
         targetParagraphs: targetParagraphs.map(truncate),
       });
       if (data.ok !== true) {
-        throw new Error(typeof data.error === "string" ? data.error : "服务没有返回配对结果");
+        throw new Error(errorMessage(data, "服务没有返回配对结果"));
       }
       const alignment = data.alignment as { pairs: PairSuggestion[]; notes: string };
       setPairs(alignment.pairs);
@@ -336,7 +343,7 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
         userTranslations: units.map((row) => row.target),
       });
       if (data.ok !== true || !data.evaluation) {
-        throw new Error(typeof data.error === "string" ? data.error : "服务没有返回批改结果");
+        throw new Error(errorMessage(data, "服务没有返回批改结果"));
       }
       setGradedRows(units);
       setEvaluation(data.evaluation as Evaluation);

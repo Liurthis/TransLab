@@ -192,14 +192,17 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
       });
       // 网关出错时返回的不是 JSON，直接 response.json() 会抛出没人看得懂的原生报错。
       const text = await response.text();
-      let data: { ok?: boolean; error?: string; evaluation?: Evaluation };
+      let data: { ok?: boolean; error?: string; detail?: string; evaluation?: Evaluation };
       try {
         data = JSON.parse(text);
       } catch {
         throw new Error(`服务返回了无法解析的内容（HTTP ${response.status}），请稍后重试。`);
       }
       if (!data.ok || !data.evaluation) {
-        throw new Error(data.error ?? "服务没有返回评估结果");
+        // 带上 detail：自己接模型时最常见的失败是地址连不通，只看错误码没法知道该改哪里。
+        throw new Error(
+          `${data.error ?? "服务没有返回评估结果"}${data.detail ? ` · ${data.detail}` : ""}`,
+        );
       }
       setEvaluation(data.evaluation);
       setSaveState("idle");

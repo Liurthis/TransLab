@@ -77,7 +77,7 @@ npm run dev:function
 | `DASHSCOPE_MODEL` | 模型名 | 默认 `qwen3.7-flash`；本地服务填你加载的模型名 |
 | `DASHSCOPE_API_KEY` | 密钥 | 云端服务商必填；本地服务（LM Studio / Ollama）填任意非空值即可 |
 
-本地跑一份完整实例（需要较新版本的 [Deno](https://deno.com)，须支持顶层 `Deno.serve` 与 `--env-file`）：
+本地跑一份完整实例（需要支持顶层 `Deno.serve` 与 `--env-file` 的 [Deno](https://deno.com)，作者实测版本 2.9.8 / macOS arm64）：
 
 ```bash
 npm ci
@@ -97,6 +97,8 @@ npm run dev:function:byo   # 等价于上一节命令 + ALLOW_USER_PROVIDER=true
 向没开启该开关的部署发送自带配置，会得到 `provider_not_enabled` 报错——后端不会静默改用服务端密钥，你花的额度始终是你自己的。
 
 注意：`enable_thinking: false`（关闭思考链提速）只在阿里云端点（dashscope / maas 域名）随请求发送，其他服务商收不到这个字段。评分逻辑与模型无关：模型只负责定位错误，分数一律由评分引擎按版本化评分表计算。
+
+端点兼容性实测记录：LM Studio 跑 `gpt-oss-20b` 会拒绝 `response_format: {"type":"json_object"}`，后端在收到明确指向该字段的报错后会去掉它重发一次（作者本机 2 句批改约 38 秒通过）；连接不上、地址端口填错也会返回 `model_call_failed · connect: …`，而不是一个没有任何说明的 500。
 
 ## 开发进度
 
