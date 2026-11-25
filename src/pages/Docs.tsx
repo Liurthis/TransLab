@@ -383,9 +383,6 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
     setSaveState(ok ? "saved" : "failed");
   };
 
-  const noReference =
-    "文档批改不提供参考译文对照：你上传的译文就是被批改的那一份，系统不会另外生成一份「参考译文」冒充审定结果。";
-
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -593,7 +590,7 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
 
       {evaluation && (
         <>
-          <ScoreCard evaluation={evaluation} noReference={noReference} />
+          <ScoreCard evaluation={evaluation} />
           <div className="flex flex-wrap items-center gap-3 text-xs">
             {storage === "ok" ? (
               <>

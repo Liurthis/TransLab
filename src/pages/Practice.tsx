@@ -307,13 +307,7 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
           <ScoreCard
             evaluation={evaluation}
             noReference={
-              !referenceAvailable && (
-                <>
-                  本篇材料没有人工审定的参考译文，因此不提供逐句对照。
-                  评分依据是模型定位到的具体错误，不是与某个标准答案比对；
-                  系统也不会为了让页面好看而临时生成一份「参考译文」。
-                </>
-              )
+              !referenceAvailable && "本篇材料没有人工审定的参考译文，因此不提供逐句对照。"
             }
           />
           <StudyPanel evaluation={evaluation} />

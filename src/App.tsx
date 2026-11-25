@@ -44,7 +44,7 @@ export default function App() {
             <BookOpenText className="size-4 text-primary" />
             <span className="text-sm font-semibold tracking-tight">TransLab</span>
             <span className="hidden text-xs text-muted-foreground sm:inline">
-              CATTI 二级笔译训练
+              CATTI 笔译训练
             </span>
           </a>
 
@@ -74,7 +74,7 @@ export default function App() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-4 text-xs text-muted-foreground">
-          <span>TransLab · 专注 CATTI 二级笔译的自助训练与评分</span>
+          <span>TransLab · 专注 CATTI 笔译的自助训练与评分</span>
         </div>
       </footer>
     </div>

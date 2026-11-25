@@ -323,9 +323,6 @@ export function NewMaterialPanel({ onSaved }: { onSaved: (material: Material) =>
           保存为本机材料
         </Button>
         <Badge variant="secondary">只存这台设备</Badge>
-        <span className="text-xs leading-relaxed text-muted-foreground">
-          自建材料没有人工审定的参考译文时，界面会明确标注不提供参考译文，不拿模型生成的译文冒充参考。
-        </span>
       </div>
     </section>
   );

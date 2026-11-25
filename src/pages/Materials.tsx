@@ -27,11 +27,11 @@ export function MaterialsPage() {
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <h2 id="site-title" className="text-2xl font-semibold tracking-tight">
-          CATTI 二级笔译训练材料
+          CATTI 笔译训练材料
         </h2>
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
           TransLab 是一个专注 CATTI
-          二级笔译的训练站点：选一篇材料按句写出译文，提交后按英译汉、汉译英两个方向逐句定位误译、漏译、用词不当、语法问题与逻辑问题，
+          笔译的训练站点：选一篇材料按句写出译文，提交后按英译汉、汉译英两个方向逐句定位误译、漏译、用词不当、语法问题与逻辑问题，
           按版本化评分表算分，并给出修改建议与值得积累的英文表达、词汇。
         </p>
         <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">

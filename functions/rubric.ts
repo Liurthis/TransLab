@@ -6,7 +6,7 @@ import type { Rubric } from "./scoring.ts";
 
 export const RUBRIC: Rubric = {
   version: "demo-0.2",
-  title: "CATTI 二级笔译（英译汉 / 汉译英）示例评分表",
+  title: "CATTI 笔译（英译汉 / 汉译英）示例评分表",
   totalScore: 100,
   sentenceFloor: 0,
   deductions: [
