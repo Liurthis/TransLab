@@ -70,24 +70,18 @@ export function MaterialsPage() {
           return (
             <div
               key={material.id}
-              className="group flex flex-col gap-3 rounded-lg border border-border bg-card p-5"
+              className="group relative flex flex-col gap-3 rounded-lg border border-border bg-card p-5 transition-colors hover:border-ring/60"
             >
-              <button
-                type="button"
-                onClick={() => navigate(`/practice/${material.id}`)}
-                className="flex flex-col gap-3 text-left"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-base font-medium text-card-foreground">
-                    {material.title}
-                  </h3>
-                  <Badge variant="secondary">{material.difficulty}</Badge>
-                </div>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-base font-medium text-card-foreground">
+                  {material.title}
+                </h3>
+                <Badge variant="secondary">{material.difficulty}</Badge>
+              </div>
 
-                <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                  {material.sentences[0]?.source}
-                </p>
-              </button>
+              <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                {material.sentences[0]?.source}
+              </p>
 
               <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-muted-foreground">
                 <span className="flex flex-wrap items-center gap-2">
@@ -99,20 +93,31 @@ export function MaterialsPage() {
                   </span>
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="text-[11px]">开始练习</span>
+                  <span className="text-[11px] transition-colors group-hover:text-foreground">
+                    开始练习
+                  </span>
                   {material.origin === "user" && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => remove(material)}
-                      aria-label={`删除自建材料 ${material.title}`}
-                    >
-                      <Trash2 />
-                    </Button>
+                    <span className="relative z-10">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => remove(material)}
+                        aria-label={`删除自建材料 ${material.title}`}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </span>
                   )}
-                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="size-4 transition-all group-hover:translate-x-1 group-hover:text-foreground" />
                 </span>
               </div>
+
+              {/* 整卡可点：文字和「开始练习」都是纯展示，真正接收点击的是这层覆盖整卡的链接。 */}
+              <a
+                href={`#/practice/${material.id}`}
+                aria-label={`开始练习：${material.title}`}
+                className="absolute inset-0 rounded-lg focus-visible:ring-2 focus-visible:ring-ring/40"
+              />
             </div>
           );
         })}
