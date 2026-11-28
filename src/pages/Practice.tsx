@@ -38,9 +38,6 @@ type DraftNotice = { kind: "restored" | "saved" | "failed"; at: string };
 const DRAFT_SAVE_DELAY_MS = 500;
 
 export function PracticePage({ materialId, savedAt }: { materialId: string; savedAt?: string }) {
-  const material = useMemo(() => findMaterial(materialId), [materialId]);
-  const rows = material?.sentences.length ?? 0;
-
   // 从练习记录页带 saved=<submitted> 进来时，恢复当时的译文与评分，而不是重新评一次。
   const restored = useMemo(() => {
     if (!savedAt) return null;
@@ -50,6 +47,13 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
       ) ?? null
     );
   }, [savedAt, materialId]);
+
+  // 记录里自带材料快照：自建材料被删掉之后，这条记录仍要能打开，不能变成死链。
+  const material = useMemo(
+    () => restored?.material ?? findMaterial(materialId),
+    [materialId, restored],
+  );
+  const rows = material?.sentences.length ?? 0;
 
   // 自动草稿只在「正常打开练习」时恢复；带 savedAt 看记录时以记录里的译文为准。
   const draftEntry = useMemo(
@@ -62,6 +66,12 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
     alignDrafts(restored?.drafts ?? draftEntry?.drafts ?? [], rows),
   );
   const [evaluation, setEvaluation] = useState<Evaluation | null>(restored?.evaluation ?? null);
+  // 评分对应的是提交那一刻的译文：之后随手改几处再点保存，存下去的必须是评过的那一版，
+  // 否则记录里的分数、错误引用和屏幕上的文字对不上。
+  const [gradedDrafts, setGradedDrafts] = useState<string[] | null>(() =>
+    restored ? alignDrafts(restored.drafts, rows) : null,
+  );
+  const [viewingSnapshot, setViewingSnapshot] = useState(Boolean(savedAt && restored));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">("idle");
@@ -74,15 +84,6 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
   const saveTimer = useRef<number | null>(null);
-
-  const writeDraftNow = () => {
-    if (saveTimer.current !== null) {
-      window.clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-    }
-    const result = saveDraft(materialId, draftsRef.current);
-    setDraftNotice(result.ok ? { kind: "saved", at: new Date().toISOString() } : { kind: "failed", at: new Date().toISOString() });
-  };
 
   const scheduleDraftSave = () => {
     if (storage !== "ok" || !materialId) return;
@@ -124,9 +125,15 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
   }, [evaluation]);
 
   const filledCount = drafts.filter((text) => text.trim()).length;
+  const editedAfterGrade =
+    !!evaluation &&
+    !!gradedDrafts &&
+    drafts.some((text, index) => text !== (gradedDrafts[index] ?? ""));
 
   const setDraft = (index: number, value: string) => {
     setDrafts((current) => current.map((item, i) => (i === index ? value : item)));
+    // 改过文本后，屏幕上那句「已保存」不再对应当前内容，撤掉它，让保存按钮重新可用。
+    setSaveState("idle");
     scheduleDraftSave();
   };
 
@@ -151,7 +158,9 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
     if (!material) return;
     setDrafts(alignDrafts(DEMO_SUBMISSION, material.sentences.length));
     setEvaluation(null);
+    setGradedDrafts(null);
     setSaveState("idle");
+    setError(null);
     scheduleDraftSave();
   };
 
@@ -171,7 +180,10 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
         { expressions: DEMO_EXPRESSIONS, vocabulary: DEMO_VOCABULARY },
       ),
     );
+    setGradedDrafts(drafts);
+    setViewingSnapshot(false);
     setSaveState("idle");
+    setError(null);
   };
 
   const submitEvaluation = async () => {
@@ -205,6 +217,8 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
         );
       }
       setEvaluation(data.evaluation);
+      setGradedDrafts(drafts);
+      setViewingSnapshot(false);
       setSaveState("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "提交失败");
@@ -215,7 +229,9 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
 
   const persist = () => {
     if (!material || !evaluation) return;
-    setSaveState(saveResult({ material, drafts, evaluation }).ok ? "saved" : "failed");
+    // 存评过的那一版：用户可能从记录里打开、改了两处却没重新提交，不能把新文字配上旧分数。
+    const snapshot = gradedDrafts ?? drafts;
+    setSaveState(saveResult({ material, drafts: snapshot, evaluation }).ok ? "saved" : "failed");
   };
 
   if (!material) {
@@ -274,10 +290,16 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
         )}
       </header>
 
-      {savedAt && (
+      {viewingSnapshot && (
         <p className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-          正在查看 <strong className="font-medium text-foreground">{new Date(savedAt).toLocaleString("zh-CN")}</strong>{" "}
+          正在查看 <strong className="font-medium text-foreground">{new Date(savedAt ?? "").toLocaleString("zh-CN")}</strong>{" "}
           保存的结果。可以直接改译文，改完重新「提交评分」；这条记录本身不会被覆盖。
+        </p>
+      )}
+
+      {savedAt && !restored && (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+          没有找到这条练习记录，可能已在本机被删除。下面是这篇材料的练习页。
         </p>
       )}
 
@@ -431,6 +453,11 @@ export function PracticePage({ materialId, savedAt }: { materialId: string; save
         )}
         {evaluation && storage !== "ok" && (
           <span>本机存储不可用（隐私模式或被禁用），无法保存结果。</span>
+        )}
+        {editedAfterGrade && (
+          <span className="text-amber-700 dark:text-amber-400">
+            译文在评分后改过：上面的分数对应上次提交的版本，重新「提交评分」才会更新。
+          </span>
         )}
         {error && (
           <span className="text-red-600 dark:text-red-400">

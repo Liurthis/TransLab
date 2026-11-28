@@ -92,7 +92,7 @@ export function StudyPanel({ evaluation }: { evaluation: Evaluation }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold tracking-tight">建议学习</h3>
         <span className="text-xs text-muted-foreground">
-          模型给出 · 学习条目一律为英文
+          {evaluation.isMock ? "内置示例" : "模型给出"} · 学习条目一律为英文
         </span>
       </div>
       {hasStudy ? (

@@ -135,6 +135,8 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
       : [],
   );
   const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">("idle");
+  // 载入旧记录只是初始画面：一旦批改了新的文档，横幅再挂在那里就是在说假话。
+  const [viewingSnapshot, setViewingSnapshot] = useState(Boolean(savedAt && restored));
   const storage = useMemo(() => storageState(), []);
 
   // 语言判断在本机做，换方向就重算：判得出几段是「这一步不交给模型」的直接结果，必须当场看见。
@@ -197,6 +199,8 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
     setEvaluation(null);
     setGradedRows([]);
     setError(null);
+    setSaveState("idle");
+    setViewingSnapshot(false);
   };
 
   const switchMode = (next: "two" | "one") => {
@@ -215,6 +219,8 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
     setEvaluation(null);
     setGradedRows([]);
     setDirection(next);
+    setSaveState("idle");
+    setViewingSnapshot(false);
   };
 
   const pick = async (mode: "two" | "one", slot: "source" | "target", file: File) => {
@@ -226,6 +232,8 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
     setAlignmentNote("");
     setDrafts([]);
     setSkipped([]);
+    setSaveState("idle");
+    setViewingSnapshot(false);
     try {
       const parsed = await readDocument(file);
       // 一份对照文档：语言由字符占比判断，这一步不交给模型；判不出的段落一律摊出来。
@@ -320,6 +328,7 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
       next[sourceIndex] = false;
       return next;
     });
+    setSaveState("idle");
   };
 
   const grade = async () => {
@@ -335,6 +344,7 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
     }
     setBusy("grade");
     setError(null);
+    setSaveState("idle");
     try {
       const data = await postJson({
         materialId: `doc:${sourceName ?? "未命名"}`,
@@ -347,6 +357,7 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
       }
       setGradedRows(units);
       setEvaluation(data.evaluation as Evaluation);
+      setViewingSnapshot(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "批改失败，请稍后重试。");
     } finally {
@@ -402,10 +413,16 @@ export function DocsPage({ savedAt }: { savedAt?: string }) {
         </p>
       </header>
 
-      {restored && (
+      {restored && viewingSnapshot && (
         <p className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
           正在查看 <strong className="font-medium text-foreground">{new Date(restored.evaluation.submitted).toLocaleString("zh-CN")}</strong>{" "}
           保存的文档批改结果。当时的文档内容没有留在浏览器里，下面是那次批改的段落快照；要批新的文档，直接在下面重新选文件即可。
+        </p>
+      )}
+
+      {savedAt && !restored && (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+          没有找到这条批改记录，可能已在本机被删除。下面可以直接批改新文档。
         </p>
       )}
 
