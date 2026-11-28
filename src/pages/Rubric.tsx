@@ -77,8 +77,7 @@ export function RubricPage() {
           也让你能看懂<strong className="font-medium text-foreground">某一句的分数是怎么来的</strong>。
         </p>
         <p>
-          权重全部写在数据文件里，改数字不需要动界面代码。一旦拿到可靠的官方评分细则，
-          只需替换这一份配置即可。
+          权重依据 CATTI 官方评分标准，全部写在数据文件里，改数字不需要动界面代码。
         </p>
       </section>
     </div>

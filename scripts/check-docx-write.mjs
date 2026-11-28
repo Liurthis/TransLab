@@ -43,7 +43,7 @@ function baseResult() {
     materialId: "m1",
     status: "ok",
     isMock: false,
-    rubricVersion: "demo-0.2",
+    rubricVersion: "catti-1.0",
     provider: "dashscope",
     model: "qwen3.7-flash",
     submitted: "2026-11-25T02:34:56.789Z",
@@ -91,7 +91,7 @@ check("含标题 TransLab", joined.includes("TransLab · 翻译记录"), true);
 check("含材料名", joined.includes("测试"), true);
 check("含方向", joined.includes("英译汉"), true);
 check("含分数", joined.includes("45 / 100"), true);
-check("含评分表", joined.includes("demo-0.2"), true);
+check("含评分表", joined.includes("catti-1.0"), true);
 check("含模型", joined.includes("qwen3.7-flash"), true);
 check("含语域", joined.includes("时事"), true);
 check("含材料来源", joined.includes("内置材料"), true);

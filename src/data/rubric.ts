@@ -1,8 +1,8 @@
 import type { Rubric } from "../types";
 
 export const RUBRIC: Rubric = {
-  version: "demo-0.2",
-  title: "CATTI 笔译（英译汉 / 汉译英）示例评分表",
+  version: "catti-1.0",
+  title: "CATTI 笔译（英译汉 / 汉译英）评分标准",
   totalScore: 100,
   sentenceFloor: 0,
   deductions: [
